@@ -3,9 +3,18 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDeck } from '../shared/deck';
 import { createGame, playCard } from '../shared/engine';
-import type { Card } from '../shared/types';
+import type { Card, GameState } from '../shared/types';
 import App from './App';
 import { GameTable } from './components/GameTable';
+
+function pickCards(ids: string[]): Card[] {
+  const byId = new Map(createDeck().map((card) => [card.id, card]));
+  return ids.map((id) => {
+    const card = byId.get(id);
+    if (!card) throw new Error(`Missing card ${id}`);
+    return card;
+  });
+}
 
 function buildDeckWithPrefix(prefixIds: string[]): Card[] {
   const base = createDeck();
@@ -276,5 +285,141 @@ describe('App — flujo inicial y mesa de juego', () => {
     expect(within(tableZone).getByLabelText('1 de oros')).toBeInTheDocument();
     expect(screen.getByText(/tú tiró 1 de oros/i)).toBeInTheDocument();
     expect(screen.getByText(/turno:\s*bot/i)).toBeInTheDocument();
+  });
+
+  it('muestra RoundSummaryModal en round_end con desempate, inicia siguiente ronda y reinicia con revancha en game_over', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const user = userEvent.setup();
+
+    const tiebreakerInitialGame: GameState = {
+      players: [
+        {
+          id: 'player-1',
+          name: 'Tú',
+          isBot: false,
+          hand: pickCards(['oros-5']),
+          captured: pickCards(['oros-7', 'copas-7', 'oros-1', 'oros-2', 'oros-3', 'copas-1', 'copas-2']),
+          escobas: 0,
+          score: 12,
+        },
+        {
+          id: 'bot-1',
+          name: 'Bot',
+          isBot: true,
+          hand: [],
+          captured: pickCards([
+            'espadas-7',
+            'bastos-7',
+            'copas-3',
+            'copas-4',
+            'copas-5',
+            'copas-6',
+            'espadas-1',
+            'espadas-2',
+            'espadas-3',
+            'espadas-4',
+          ]),
+          escobas: 1,
+          score: 13,
+        },
+      ],
+      table: pickCards(['copas-12']),
+      deck: [],
+      dealerIndex: 0,
+      currentPlayerIndex: 0,
+      lastCapturerId: 'bot-1',
+      lastAction: null,
+      targetScore: 15,
+      round: 2,
+      escobaDeMano: 0,
+      phase: 'playing',
+      roundSummary: null,
+      winnerId: null,
+      winnerTeamId: null,
+      isTiebreaker: false,
+    };
+
+    const { unmount } = render(<App initialGame={tiebreakerInitialGame} />);
+
+    await user.click(within(screen.getByRole('region', { name: /tu mano/i })).getByRole('button', { name: '5 de oros' }));
+    await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
+
+    const tieDialog = screen.getByRole('dialog');
+    const summaryTable = within(tieDialog).getByRole('table');
+    expect(within(summaryTable).getByText(/escobas/i)).toBeInTheDocument();
+    expect(within(summaryTable).getByText(/7 de oros/i)).toBeInTheDocument();
+    expect(within(summaryTable).getByText(/sietes/i)).toBeInTheDocument();
+    expect(within(summaryTable).getByText(/^oros$/i)).toBeInTheDocument();
+    expect(within(summaryTable).getByText(/cartas/i)).toBeInTheDocument();
+    expect(within(summaryTable).getByText(/tú/i)).toBeInTheDocument();
+    expect(within(summaryTable).getByText(/bot/i)).toBeInTheDocument();
+    expect(within(summaryTable).getAllByText('3').length).toBeGreaterThan(0);
+    expect(within(summaryTable).getAllByText('2').length).toBeGreaterThan(0);
+    expect(within(summaryTable).getAllByText('15')).toHaveLength(2);
+    expect(within(tieDialog).getByText(/desempate/i)).toBeInTheDocument();
+
+    await user.click(within(tieDialog).getByRole('button', { name: /siguiente ronda/i }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: /tu mano/i })).getAllByRole('button')).toHaveLength(3);
+    expect(within(screen.getByRole('region', { name: /rival/i })).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(3);
+    expect(within(screen.getByRole('region', { name: /mazo/i })).getByText(/\b30\b/)).toBeInTheDocument();
+    expect(screen.getByText(/turno:\s*tú/i)).toBeInTheDocument();
+
+    unmount();
+
+    const gameOverInitialGame: GameState = {
+      players: [
+        {
+          id: 'player-1',
+          name: 'Tú',
+          isBot: false,
+          hand: pickCards(['oros-5']),
+          captured: pickCards(['oros-7', 'oros-1', 'oros-2']),
+          escobas: 0,
+          score: 14,
+        },
+        {
+          id: 'bot-1',
+          name: 'Bot',
+          isBot: true,
+          hand: [],
+          captured: pickCards(['copas-1', 'copas-2']),
+          escobas: 0,
+          score: 10,
+        },
+      ],
+      table: pickCards(['copas-12']),
+      deck: [],
+      dealerIndex: 1,
+      currentPlayerIndex: 0,
+      lastCapturerId: 'player-1',
+      lastAction: null,
+      targetScore: 15,
+      round: 3,
+      escobaDeMano: 0,
+      phase: 'playing',
+      roundSummary: null,
+      winnerId: null,
+      winnerTeamId: null,
+      isTiebreaker: false,
+    };
+
+    render(<App initialGame={gameOverInitialGame} />);
+
+    await user.click(within(screen.getByRole('region', { name: /tu mano/i })).getByRole('button', { name: '5 de oros' }));
+    await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
+
+    const gameOverDialog = screen.getByRole('dialog');
+    expect(within(gameOverDialog).getByText(/ganó|ganador|victoria/i)).toBeInTheDocument();
+    expect(within(gameOverDialog).getAllByText(/tú/i).length).toBeGreaterThan(0);
+
+    await user.click(within(gameOverDialog).getByRole('button', { name: /jugar revancha/i }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: /tu mano/i })).getAllByRole('button')).toHaveLength(3);
+    expect(within(screen.getByRole('region', { name: /rival/i })).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(3);
+    expect(within(screen.getByRole('region', { name: /mazo/i })).getByText(/\b30\b/)).toBeInTheDocument();
+    expect(screen.queryByText(/levantó/i)).not.toBeInTheDocument();
   });
 });
