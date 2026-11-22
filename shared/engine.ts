@@ -167,12 +167,49 @@ export function findCaptureCombinations(handCard: Card, tableCards: readonly Car
   return combinations;
 }
 
+/** Valida una captura contra la mesa y devuelve las cartas capturadas sin mutar la entrada. */
+function resolveCapturedCards(
+  table: readonly Card[],
+  playedCard: Card,
+  tableCardIds: readonly string[],
+): Card[] {
+  if (tableCardIds.length === 0) {
+    throw new Error('Capture requires at least one table card');
+  }
+
+  const seenIds = new Set<string>();
+  for (const id of tableCardIds) {
+    if (seenIds.has(id)) {
+      throw new Error(`Duplicate table card ID in capture: ${id}`);
+    }
+    seenIds.add(id);
+  }
+
+  const tableIds = new Set(table.map((card) => card.id));
+  for (const id of tableCardIds) {
+    if (!tableIds.has(id)) {
+      throw new Error(`Table card ${id} is not on the table`);
+    }
+  }
+
+  const capturedCards = table.filter((card) => seenIds.has(card.id));
+  const totalSum = capturedCards.reduce((sum, card) => sum + card.value, playedCard.value);
+  if (totalSum !== ESCOBA_SUM) {
+    throw new Error(`Invalid capture sum: expected ${ESCOBA_SUM}, got ${totalSum}`);
+  }
+
+  return capturedCards;
+}
+
 /** Ejecuta una jugada (`capture` o `discard`) del jugador actual y retorna el nuevo estado. */
 export function playCard(state: GameState, playerId: string, action: PlayAction): GameState {
   const playerIndex = state.currentPlayerIndex;
   const player = state.players[playerIndex];
-  const playedCard = player.hand.find((card) => card.id === action.cardId);
+  if (!player || player.id !== playerId) {
+    throw new Error(`It is not player ${playerId}'s turn`);
+  }
 
+  const playedCard = player.hand.find((card) => card.id === action.cardId);
   if (!playedCard) {
     throw new Error(`Card ${action.cardId} is not in player ${playerId}'s hand`);
   }
@@ -183,9 +220,9 @@ export function playCard(state: GameState, playerId: string, action: PlayAction)
   let nextLastCapturerId = state.lastCapturerId;
 
   if (action.type === 'capture') {
-    const tableIdSet = new Set(action.tableCardIds);
-    capturedCards = state.table.filter((card) => tableIdSet.has(card.id));
-    nextTable = state.table.filter((card) => !tableIdSet.has(card.id));
+    capturedCards = resolveCapturedCards(state.table, playedCard, action.tableCardIds);
+    const capturedIdSet = new Set(action.tableCardIds);
+    nextTable = state.table.filter((card) => !capturedIdSet.has(card.id));
     madeEscoba = nextTable.length === 0;
     nextLastCapturerId = player.id;
   } else {
