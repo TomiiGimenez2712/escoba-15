@@ -5,6 +5,7 @@ const VALID_SUITS = new Set<Suit>(['oros', 'copas', 'espadas', 'bastos']);
 const CARDS_PER_HAND = 3;
 const TABLE_CARD_COUNT = 4;
 const DECK_SIZE = 40;
+const ESCOBA_SUM = 15;
 
 /** Valida que el mazo contenga exactamente 40 cartas únicas de baraja española. */
 function validateDeck(deck: readonly Card[]): void {
@@ -76,18 +77,27 @@ export function createGame(options: CreateGameOptions): GameState {
   });
 
   const tableStart = options.players.length * CARDS_PER_HAND;
-  const table = sourceDeck.slice(tableStart, tableStart + TABLE_CARD_COUNT);
+  const initialTable = sourceDeck.slice(tableStart, tableStart + TABLE_CARD_COUNT);
   const deck = sourceDeck.slice(tableStart + TABLE_CARD_COUNT);
+
+  const tableSum = initialTable.reduce((sum, card) => sum + card.value, 0);
+  const escobaDeMano: GameState['escobaDeMano'] = tableSum === ESCOBA_SUM ? 1 : 0;
+
+  if (escobaDeMano > 0) {
+    const dealer = players[dealerIndex];
+    dealer.captured = initialTable;
+    dealer.escobas = escobaDeMano;
+  }
 
   return {
     players,
-    table,
+    table: escobaDeMano > 0 ? [] : initialTable,
     deck,
     dealerIndex,
     currentPlayerIndex: (dealerIndex + 1) % players.length,
-    lastCapturerId: null,
+    lastCapturerId: escobaDeMano > 0 ? players[dealerIndex].id : null,
     targetScore,
     round: 1,
-    escobaDeMano: 0,
+    escobaDeMano,
   };
 }
