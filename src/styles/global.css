@@ -509,17 +509,18 @@ body {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
 }
 
-/* Mesa de juego — mobile-first 100dvh */
+/* Mesa de juego — siempre 100dvh sin scroll vertical */
 .game-table {
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
   max-width: 1080px;
   margin: 0 auto;
-  padding: 0.75rem 0.65rem 1rem;
+  padding: 0.45rem 0.55rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 0.65rem;
-  overflow-x: clip;
+  gap: 0.35rem;
+  overflow: hidden;
 }
 
 .table-topbar {
@@ -527,29 +528,30 @@ body {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.45rem;
+  gap: 0.3rem;
   width: 100%;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .table-topbar__meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
   min-width: 0;
 }
 
 .topbar-pill {
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
-  padding: 0.3rem 0.75rem;
+  min-height: 28px;
+  padding: 0.2rem 0.58rem;
   border-radius: 999px;
   background: var(--surface);
   border: 1px solid var(--border-subtle);
   color: #e2e8f0;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -560,38 +562,62 @@ body {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.45rem;
+  gap: 0.3rem;
   min-width: 0;
 }
 
 .table-felt {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 0.65rem;
+  gap: 0.25rem;
   flex: 1;
+  min-height: 0;
   width: 100%;
   min-width: 0;
+  overflow: hidden;
 }
 
 .table-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.35rem;
   width: 100%;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .side-card {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
-  padding: 0.85rem 0.95rem;
-  border-radius: 16px;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 14px;
   background: var(--surface);
   border: 1px solid var(--border-subtle);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
   min-width: 0;
+}
+
+.side-card--history {
+  display: none;
+}
+
+.side-card--history.side-card--history-open {
+  display: flex;
+  position: fixed;
+  inset: 0.85rem;
+  z-index: 60;
+  padding: 1rem;
+  background: rgba(11, 15, 25, 0.97);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-subtle);
+}
+
+.side-card--history.side-card--history-open .history-list {
+  flex: 1;
+  overflow-y: auto;
 }
 
 .side-card__header {
@@ -637,20 +663,20 @@ body {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 0.35rem;
   min-width: 0;
 }
 
 .scoreboard-item {
   display: flex;
   flex-direction: column;
-  gap: 0.28rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 12px;
+  gap: 0.16rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 10px;
   background: rgba(0, 0, 0, 0.24);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   min-width: 0;
 }
 
@@ -823,14 +849,14 @@ body {
 
 .topbar-button {
   appearance: none;
-  min-height: 40px;
-  padding: 0.4rem 0.9rem;
+  min-height: 30px;
+  padding: 0.22rem 0.62rem;
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
   background: var(--surface);
   color: #e2e8f0;
   font: inherit;
-  font-size: 0.84rem;
+  font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -888,19 +914,54 @@ body {
 
 .table-middle {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 0.85rem;
+  gap: 0.5rem;
   flex: 1;
+  min-height: 0;
+}
+
+.table-zone--deck {
+  flex-shrink: 0;
 }
 
 .table-zone--mesa {
-  width: 100%;
-  padding: 0.75rem 0.5rem;
-  border-radius: 18px;
-  background: rgba(0, 0, 0, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0.4rem;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bot-preview-overlay {
+  position: absolute;
+  top: 2.3rem;
+  right: 0.5rem;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.bot-preview-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1.5px solid #38bdf8;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+}
+
+.bot-preview-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #bae6fd;
+  white-space: nowrap;
 }
 
 .card-row {
@@ -1112,15 +1173,16 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
   width: min(100%, 560px);
-  min-height: 92px;
+  min-height: 64px;
   margin: 0 auto;
-  padding: 0.65rem 0.85rem;
-  border-radius: 16px;
+  padding: 0.4rem 0.65rem;
+  border-radius: 14px;
   background: var(--surface);
   border: 1px solid var(--border-subtle);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+  flex-shrink: 0;
   transition: border-color 0.16s ease, background-color 0.16s ease;
 }
 
@@ -1238,14 +1300,13 @@ body {
 /* Carta española — proporción tradicional 5:8 */
 .spanish-card {
   position: relative;
-  width: clamp(64px, 18vw, 96px);
+  width: clamp(50px, min(14.5vw, 8.6dvh), 76px);
   aspect-ratio: 5 / 8;
   border-radius: 8px;
   flex-shrink: 0;
   user-select: none;
   box-shadow: var(--card-shadow);
   overflow: hidden;
-  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
 }
 
 button.spanish-card {
@@ -1286,12 +1347,26 @@ button.spanish-card:disabled {
 
 .spanish-card--highlighted {
   border-color: #38bdf8;
-  transform: translateY(-4px);
   box-shadow: 0 0 0 3px #7dd3fc, 0 0 16px rgba(56, 189, 248, 0.55);
 }
 
+@keyframes botTargetPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px #38bdf8, 0 0 16px rgba(56, 189, 248, 0.65);
+  }
+  50% {
+    box-shadow: 0 0 0 4px #fde047, 0 0 22px rgba(250, 204, 21, 0.78);
+  }
+}
+
+.spanish-card--bot-target {
+  border-color: #38bdf8;
+  animation: botTargetPulse 0.7s ease-in-out infinite;
+}
+
 .spanish-card--compact {
-  width: clamp(46px, 13vw, 72px);
+  width: clamp(34px, min(9.5vw, 5.8dvh), 54px);
 }
 
 .spanish-card--front {
@@ -1357,6 +1432,63 @@ button.spanish-card:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.spanish-card__pips {
+  position: absolute;
+  inset: 14% 12% 11% 12%;
+  pointer-events: none;
+}
+
+.spanish-card__pip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+}
+
+.spanish-card__figure-scene {
+  position: relative;
+  width: 82%;
+  height: 76%;
+  margin-top: 8%;
+  pointer-events: none;
+}
+
+.spanish-card__figure-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.spanish-card__figure-emblem {
+  position: absolute;
+  width: 24%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spanish-card__figure-emblem--sota {
+  right: 17%;
+  top: 43%;
+}
+
+.spanish-card__figure-emblem--caballo {
+  left: 11%;
+  top: 23%;
+}
+
+.spanish-card__figure-emblem--rey {
+  right: 14%;
+  top: 40%;
+}
+
+.spanish-card__emblem-svg {
+  width: 100%;
+  height: 100%;
 }
 
 .spanish-card__suit-art {
@@ -1627,15 +1759,15 @@ button.spanish-card:disabled {
   }
 
   .game-table {
-    padding: 1.25rem 1.5rem 1.5rem;
-    gap: 1rem;
+    padding: 0.65rem 1rem;
+    gap: 0.5rem;
   }
 
   .table-middle {
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 1.5rem;
+    gap: 1.25rem;
   }
 
   .table-zone--deck {
@@ -1644,51 +1776,51 @@ button.spanish-card:disabled {
 
   .table-zone--mesa {
     width: auto;
-    min-width: 420px;
-    padding: 1.1rem 1.4rem;
+    min-width: 380px;
+    padding: 0.75rem 1rem;
   }
 
   .card-row {
-    gap: 0.75rem;
+    gap: 0.65rem;
   }
 
   .opponent-seats {
-    gap: 0.85rem;
+    gap: 0.75rem;
   }
 
   .opponent-seat {
-    padding: 0.55rem 0.85rem;
-    gap: 0.45rem;
-  }
-
-  .opponent-seat__name {
-    font-size: 0.92rem;
-  }
-
-  .team-badge {
-    padding: 0.16rem 0.6rem;
-    font-size: 0.74rem;
-  }
-
-  .opponent-seats--multi .opponent-seat {
-    padding: 0.55rem 0.8rem;
-  }
-
-  .opponent-seats--multi .opponent-hand {
+    padding: 0.45rem 0.75rem;
     gap: 0.35rem;
   }
 
+  .opponent-seat__name {
+    font-size: 0.88rem;
+  }
+
+  .team-badge {
+    padding: 0.14rem 0.55rem;
+    font-size: 0.72rem;
+  }
+
+  .opponent-seats--multi .opponent-seat {
+    padding: 0.45rem 0.7rem;
+  }
+
+  .opponent-seats--multi .opponent-hand {
+    gap: 0.3rem;
+  }
+
   .opponent-seats--multi .spanish-card--compact {
-    width: 62px;
+    width: clamp(44px, 6dvh, 56px);
   }
 
   .spanish-card {
-    width: 102px;
+    width: clamp(64px, min(11vw, 9.8dvh), 88px);
     border-radius: 10px;
   }
 
   .spanish-card--compact {
-    width: 78px;
+    width: clamp(46px, min(8vw, 6.8dvh), 64px);
   }
 
   .spanish-card__number {
@@ -1766,14 +1898,21 @@ button.spanish-card:disabled {
 }
 
 @media (min-width: 1024px) {
+  .topbar-button--mobile-history {
+    display: none;
+  }
+
   .game-table {
     max-width: 1320px;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 310px;
-    grid-template-rows: auto 1fr;
-    align-items: start;
-    gap: 1rem 1.25rem;
-    padding: 1.25rem 1.5rem 1.5rem;
+    grid-template-columns: minmax(0, 1fr) 295px;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0.65rem 1rem;
+    padding: 0.75rem 1.25rem;
   }
 
   .table-topbar {
@@ -1781,31 +1920,61 @@ button.spanish-card:disabled {
     justify-content: space-between;
   }
 
+  .topbar-pill {
+    min-height: 32px;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.78rem;
+  }
+
+  .topbar-button {
+    min-height: 36px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.84rem;
+  }
+
   .table-felt {
+    position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: 0.85rem;
+    gap: 0.45rem;
     min-width: 0;
-    min-height: calc(100dvh - 5.75rem);
-    padding: 1.15rem 1.25rem;
+    min-height: 0;
+    height: 100%;
+    padding: 0.75rem 1rem;
     border-radius: 22px;
     border: 1px solid var(--border-subtle);
     background: rgba(15, 23, 42, 0.55);
     backdrop-filter: blur(8px);
     box-shadow: 0 20px 44px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
   }
 
   .table-sidebar {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.7rem;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .scoreboard-list {
     display: flex;
     flex-direction: column;
-    gap: 0.9rem;
-    position: sticky;
-    top: 1rem;
+    gap: 0.4rem;
+  }
+
+  .side-card--history {
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .history-list {
-    max-height: 320px;
+    flex: 1;
+    min-height: 0;
+    max-height: none;
     overflow-y: auto;
   }
 

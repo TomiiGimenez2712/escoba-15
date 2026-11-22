@@ -1,5 +1,6 @@
 import { useEffect, useId } from 'react';
 import type { MouseEvent } from 'react';
+import { motion } from 'motion/react';
 
 export interface RulesModalProps {
   open: boolean;
@@ -37,12 +38,21 @@ export function RulesModal({ open, onClose }: RulesModalProps) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={handleBackdropClick}>
-      <div
+    <motion.div
+      className="modal-backdrop"
+      onClick={handleBackdropClick}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18 }}
+    >
+      <motion.div
         className="round-modal rules-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        initial={{ opacity: 0, scale: 0.92, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 28 }}
       >
         <h2 id={titleId} className="round-modal__title">
           Reglas rápidas
@@ -122,8 +132,8 @@ export function RulesModal({ open, onClose }: RulesModalProps) {
             Cerrar
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

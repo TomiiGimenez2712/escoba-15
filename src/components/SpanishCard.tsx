@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { motion } from 'motion/react';
 import type { Card, CardNumber, Suit } from '../../shared/types';
 
 export interface SpanishCardProps {
@@ -8,24 +9,99 @@ export interface SpanishCardProps {
   onClick?: () => void;
   selected?: boolean;
   highlighted?: boolean;
+  botTarget?: boolean;
   disabled?: boolean;
   showFigureValues?: boolean;
 }
 
 const SUIT_META: Record<
   Suit,
-  { label: string; colorClass: string; pintaBreaks: 0 | 1 | 2 | 3 }
+  { label: string; colorClass: string; primary: string; secondary: string; pintaBreaks: 0 | 1 | 2 | 3 }
 > = {
-  oros: { label: 'Oros', colorClass: 'spanish-card--oros', pintaBreaks: 0 },
-  copas: { label: 'Copas', colorClass: 'spanish-card--copas', pintaBreaks: 1 },
-  espadas: { label: 'Espadas', colorClass: 'spanish-card--espadas', pintaBreaks: 2 },
-  bastos: { label: 'Bastos', colorClass: 'spanish-card--bastos', pintaBreaks: 3 },
+  oros: {
+    label: 'Oros',
+    colorClass: 'spanish-card--oros',
+    primary: '#d97706',
+    secondary: '#fef3c7',
+    pintaBreaks: 0,
+  },
+  copas: {
+    label: 'Copas',
+    colorClass: 'spanish-card--copas',
+    primary: '#dc2626',
+    secondary: '#fee2e2',
+    pintaBreaks: 1,
+  },
+  espadas: {
+    label: 'Espadas',
+    colorClass: 'spanish-card--espadas',
+    primary: '#1d4ed8',
+    secondary: '#dbeafe',
+    pintaBreaks: 2,
+  },
+  bastos: {
+    label: 'Bastos',
+    colorClass: 'spanish-card--bastos',
+    primary: '#15803d',
+    secondary: '#dcfce7',
+    pintaBreaks: 3,
+  },
 };
 
 const FIGURE_NAMES: Partial<Record<CardNumber, string>> = {
   10: 'Sota',
   11: 'Caballo',
   12: 'Rey',
+};
+
+interface PipPoint {
+  x: number;
+  y: number;
+  size: number;
+  rotate?: number;
+}
+
+const PIP_LAYOUTS: Record<1 | 2 | 3 | 4 | 5 | 6 | 7, readonly PipPoint[]> = {
+  1: [{ x: 50, y: 50, size: 46 }],
+  2: [
+    { x: 50, y: 29, size: 28 },
+    { x: 50, y: 71, size: 28, rotate: 180 },
+  ],
+  3: [
+    { x: 50, y: 23, size: 24 },
+    { x: 50, y: 50, size: 24 },
+    { x: 50, y: 77, size: 24, rotate: 180 },
+  ],
+  4: [
+    { x: 32, y: 31, size: 24 },
+    { x: 68, y: 31, size: 24 },
+    { x: 32, y: 69, size: 24, rotate: 180 },
+    { x: 68, y: 69, size: 24, rotate: 180 },
+  ],
+  5: [
+    { x: 30, y: 26, size: 22 },
+    { x: 70, y: 26, size: 22 },
+    { x: 50, y: 50, size: 22 },
+    { x: 30, y: 74, size: 22, rotate: 180 },
+    { x: 70, y: 74, size: 22, rotate: 180 },
+  ],
+  6: [
+    { x: 31, y: 24, size: 21 },
+    { x: 69, y: 24, size: 21 },
+    { x: 31, y: 50, size: 21 },
+    { x: 69, y: 50, size: 21 },
+    { x: 31, y: 76, size: 21, rotate: 180 },
+    { x: 69, y: 76, size: 21, rotate: 180 },
+  ],
+  7: [
+    { x: 30, y: 22, size: 20 },
+    { x: 70, y: 22, size: 20 },
+    { x: 50, y: 37, size: 20 },
+    { x: 30, y: 53, size: 20 },
+    { x: 70, y: 53, size: 20 },
+    { x: 30, y: 77, size: 20, rotate: 180 },
+    { x: 70, y: 77, size: 20, rotate: 180 },
+  ],
 };
 
 function SuitSvg({ suit, className }: { suit: Suit; className?: string }) {
@@ -184,6 +260,131 @@ function SuitSvg({ suit, className }: { suit: Suit; className?: string }) {
   }
 }
 
+function FigureIllustration({
+  number,
+  suit,
+}: {
+  number: 10 | 11 | 12;
+  suit: Suit;
+}) {
+  const { primary, secondary } = SUIT_META[suit];
+
+  if (number === 10) {
+    // Sota: paje con boina emplumada y túnica sosteniendo el emblema del palo
+    return (
+      <div className="spanish-card__figure-scene" aria-hidden="true">
+        <svg viewBox="0 0 80 100" className="spanish-card__figure-svg">
+          {/* Pluma y boina */}
+          <path d="M46 14 C56 8 62 14 54 22 Z" fill={primary} opacity="0.85" />
+          <path d="M25 26 C26 17 48 16 53 25 Z" fill={primary} stroke="#1e293b" strokeWidth="2" />
+          {/* Rostro */}
+          <circle cx="39" cy="33" r="9.5" fill="#fde68a" stroke="#78350f" strokeWidth="1.8" />
+          <circle cx="36" cy="32" r="1.2" fill="#1e293b" />
+          <circle cx="42" cy="32" r="1.2" fill="#1e293b" />
+          {/* Cuello y túnica */}
+          <path d="M24 47 C24 41 54 41 54 47 L58 84 H20 Z" fill={primary} stroke="#1e293b" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M32 44 L39 54 L46 44 Z" fill={secondary} />
+          <rect x="23" y="64" width="32" height="5" rx="2" fill="#f59e0b" stroke="#78350f" strokeWidth="1.3" />
+          {/* Escudo con el palo */}
+          <circle cx="56" cy="54" r="13" fill="#ffffff" stroke={primary} strokeWidth="2" />
+        </svg>
+        <div className="spanish-card__figure-emblem spanish-card__figure-emblem--sota">
+          <SuitSvg suit={suit} className="spanish-card__emblem-svg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (number === 11) {
+    // Caballo: corcel encabritado con jinete y emblema del palo
+    return (
+      <div className="spanish-card__figure-scene" aria-hidden="true">
+        <svg viewBox="0 0 80 100" className="spanish-card__figure-svg">
+          {/* Jinete */}
+          <path d="M27 21 C28 14 40 14 42 21 Z" fill={primary} stroke="#1e293b" strokeWidth="1.8" />
+          <circle cx="34" cy="27" r="6.5" fill="#fde68a" stroke="#78350f" strokeWidth="1.6" />
+          <path d="M26 35 L42 35 L44 53 L25 53 Z" fill={primary} stroke="#1e293b" strokeWidth="1.8" strokeLinejoin="round" />
+          {/* Caballo (cuerpo, cuello, cabeza, crin y patas) */}
+          <path
+            d="M18 60 C20 48 34 46 47 48 L54 32 L64 36 L60 47 C64 52 63 62 56 66 L61 84 H53 L49 69 H31 L25 84 H17 L23 67 C19 65 17 63 18 60 Z"
+            fill="#d97706"
+            stroke="#451a03"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+          <path d="M51 34 C46 37 44 43 46 47" fill="none" stroke="#78350f" strokeWidth="2.4" strokeLinecap="round" />
+          <circle cx="58" cy="38" r="1.4" fill="#1e293b" />
+          {/* Silla */}
+          <path d="M28 48 H44 L42 56 H29 Z" fill={secondary} stroke="#1e293b" strokeWidth="1.5" />
+          {/* Medallón del palo */}
+          <circle cx="19" cy="34" r="11" fill="#ffffff" stroke={primary} strokeWidth="2" />
+        </svg>
+        <div className="spanish-card__figure-emblem spanish-card__figure-emblem--caballo">
+          <SuitSvg suit={suit} className="spanish-card__emblem-svg" />
+        </div>
+      </div>
+    );
+  }
+
+  // 12 — Rey: corona real, barba, manto y emblema del palo
+  return (
+    <div className="spanish-card__figure-scene" aria-hidden="true">
+      <svg viewBox="0 0 80 100" className="spanish-card__figure-svg">
+        {/* Corona */}
+        <path
+          d="M26 24 L29 12 L35 19 L40 10 L45 19 L51 12 L54 24 Z"
+          fill="#facc15"
+          stroke="#92400e"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
+        {/* Cabeza y barba */}
+        <circle cx="40" cy="33" r="9.5" fill="#fde68a" stroke="#78350f" strokeWidth="1.8" />
+        <path d="M31 35 C32 45 48 45 49 35 C45 38 35 38 31 35 Z" fill="#cbd5e1" stroke="#475569" strokeWidth="1.4" />
+        <circle cx="37" cy="31.5" r="1.2" fill="#1e293b" />
+        <circle cx="43" cy="31.5" r="1.2" fill="#1e293b" />
+        {/* Manto real */}
+        <path
+          d="M19 49 C22 42 58 42 61 49 L64 86 H16 Z"
+          fill={primary}
+          stroke="#1e293b"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <path d="M33 44 H47 L45 86 H35 Z" fill={secondary} opacity="0.9" />
+        <circle cx="40" cy="54" r="3" fill="#f59e0b" />
+        {/* Emblema real */}
+        <circle cx="59" cy="52" r="12.5" fill="#ffffff" stroke="#b45309" strokeWidth="2" />
+      </svg>
+      <div className="spanish-card__figure-emblem spanish-card__figure-emblem--rey">
+        <SuitSvg suit={suit} className="spanish-card__emblem-svg" />
+      </div>
+    </div>
+  );
+}
+
+function PipsGrid({ number, suit }: { number: 1 | 2 | 3 | 4 | 5 | 6 | 7; suit: Suit }) {
+  const layout = PIP_LAYOUTS[number];
+  return (
+    <div className="spanish-card__pips" aria-hidden="true">
+      {layout.map((pip, index) => (
+        <span
+          key={index}
+          className="spanish-card__pip"
+          style={{
+            left: `${pip.x}%`,
+            top: `${pip.y}%`,
+            width: `${pip.size}%`,
+            transform: `translate(-50%, -50%)${pip.rotate ? ` rotate(${pip.rotate}deg)` : ''}`,
+          }}
+        >
+          <SuitSvg suit={suit} className="spanish-card__suit-art" />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function PintaFrame({ breaks }: { breaks: 0 | 1 | 2 | 3 }) {
   const renderPintaBar = () => {
     if (breaks === 0) {
@@ -259,6 +460,7 @@ export function SpanishCard({
   onClick,
   selected = false,
   highlighted = false,
+  botTarget = false,
   disabled = false,
   showFigureValues = false,
 }: SpanishCardProps) {
@@ -266,18 +468,24 @@ export function SpanishCard({
 
   if (faceDown || !card) {
     return (
-      <div
+      <motion.div
+        layout
+        initial={{ opacity: 0, scale: 0.85, y: -8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.78, y: 8 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 28 }}
         className={`spanish-card spanish-card--back ${sizeClass}`.trim()}
         role="img"
         aria-label="Carta oculta"
       >
         <CardBackArt />
-      </div>
+      </motion.div>
     );
   }
 
   const meta = SUIT_META[card.suit];
   const figureName = FIGURE_NAMES[card.number];
+  const isFigure = card.number === 10 || card.number === 11 || card.number === 12;
   const className = [
     'spanish-card',
     'spanish-card--front',
@@ -285,6 +493,7 @@ export function SpanishCard({
     sizeClass,
     selected ? 'spanish-card--selected' : '',
     highlighted ? 'spanish-card--highlighted' : '',
+    botTarget ? 'spanish-card--bot-target' : '',
     onClick ? 'spanish-card--interactive' : '',
     disabled ? 'spanish-card--disabled' : '',
   ]
@@ -304,9 +513,11 @@ export function SpanishCard({
         <span className="spanish-card__value-badge">{`= ${card.value}`}</span>
       )}
 
-      <span className="spanish-card__center">
-        <SuitSvg suit={card.suit} className="spanish-card__suit-art" />
-      </span>
+      {isFigure ? (
+        <FigureIllustration number={card.number as 10 | 11 | 12} suit={card.suit} />
+      ) : (
+        <PipsGrid number={card.number as 1 | 2 | 3 | 4 | 5 | 6 | 7} suit={card.suit} />
+      )}
 
       {figureName && <span className="spanish-card__figure">{figureName}</span>}
     </>
@@ -319,26 +530,42 @@ export function SpanishCard({
     'data-number': card.number,
     'data-selected': selected ? 'true' : undefined,
     'data-highlighted': highlighted ? 'true' : undefined,
+    'data-bot-target': botTarget ? 'true' : undefined,
+  };
+
+  const motionAnim = {
+    initial: { opacity: 0, scale: 0.82, y: -14 },
+    animate: {
+      opacity: 1,
+      scale: botTarget ? 1.04 : 1,
+      y: selected ? -7 : botTarget ? -6 : 0,
+    },
+    exit: { opacity: 0, scale: 0.72, y: -22, transition: { duration: 0.2 } },
+    transition: { type: 'spring' as const, stiffness: 420, damping: 28 },
   };
 
   if (onClick) {
     return (
-      <button
+      <motion.button
+        layout
         type="button"
         {...sharedProps}
+        {...motionAnim}
+        whileHover={!disabled ? { y: selected ? -9 : -4, scale: 1.03 } : undefined}
+        whileTap={!disabled ? { scale: 0.95 } : undefined}
         onClick={onClick}
         disabled={disabled}
         aria-pressed={selected}
       >
         {cardContent}
-      </button>
+      </motion.button>
     );
   }
 
   return (
-    <div role="group" {...sharedProps}>
+    <motion.div layout {...sharedProps} {...motionAnim} role="group">
       {cardContent}
-    </div>
+    </motion.div>
   );
 }
 

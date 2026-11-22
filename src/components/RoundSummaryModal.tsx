@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { motion } from 'motion/react';
 import type { GameState, ParticipantRoundScore, PlayerGameView } from '../../shared/types';
 import { TrucoScore } from './TrucoScore';
 
@@ -69,12 +70,20 @@ export function RoundSummaryModal({ game, onNextRound, onRematch }: RoundSummary
   const showTiebreaker = isRoundEnd && game.isTiebreaker;
 
   return (
-    <div className="modal-backdrop">
-      <div
+    <motion.div
+      className="modal-backdrop"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div
         className="round-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        initial={{ opacity: 0, scale: 0.9, y: 18 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 360, damping: 26 }}
       >
         <h2 id={titleId} className="round-modal__title">
           {isGameOver ? 'Fin de la partida' : `Fin de la ronda ${summary.round}`}
@@ -144,8 +153,8 @@ export function RoundSummaryModal({ game, onNextRound, onRematch }: RoundSummary
             </button>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

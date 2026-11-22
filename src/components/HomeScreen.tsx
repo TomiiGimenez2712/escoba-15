@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react';
+import { motion } from 'motion/react';
 import type { BotDifficulty, RoomSnapshot, TargetScore } from '../../shared/types';
 import type { PlayerCount } from '../hooks/useLocalGame';
 import type { CreateOnlineRoomInput, JoinOnlineRoomInput } from '../hooks/useOnlineGame';
@@ -84,7 +85,12 @@ export function HomeScreen({
 
   return (
     <main className="app-shell start-screen">
-      <div className="start-card">
+      <motion.div
+        className="start-card"
+        initial={{ opacity: 0, y: 18, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+      >
         <h1 className="start-title">Escoba del 15</h1>
 
         <div className="mode-tabs" role="tablist" aria-label="Modalidad de juego">
@@ -175,7 +181,7 @@ export function HomeScreen({
             />
           </div>
         )}
-      </div>
+      </motion.div>
     </main>
   );
 }

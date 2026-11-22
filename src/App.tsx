@@ -24,6 +24,7 @@ export default function App({ initialGame = null }: AppProps = {}) {
     targetScore,
     setTargetScore,
     game,
+    botPreview,
     startGame,
     playAction,
     nextRound,
@@ -53,6 +54,7 @@ export default function App({ initialGame = null }: AppProps = {}) {
           game={game}
           localPlayerId={game.players[0].id}
           modeLabel={`IA · ${DIFFICULTY_LABELS[difficulty]}`}
+          botPreview={botPreview}
           onPlayAction={playAction}
           onExit={exitGame}
         />

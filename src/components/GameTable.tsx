@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import confetti from 'canvas-confetti';
+import { AnimatePresence, motion } from 'motion/react';
 import type {
   Card,
   GameState,
@@ -6,6 +8,7 @@ import type {
   PlayAction,
   PlayerGameView,
 } from '../../shared/types';
+import type { BotMovePreview } from '../hooks/useLocalGame';
 import {
   playCaptureSound,
   playCardSelectSound,
@@ -25,8 +28,29 @@ export interface GameTableProps {
   game: GameState | PlayerGameView;
   localPlayerId?: string;
   modeLabel?: string;
+  botPreview?: BotMovePreview | null;
   onPlayAction?: (action: PlayAction) => void;
   onExit?: () => void;
+}
+
+function fireCelebrationConfetti(isVictory = false): void {
+  try {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+    const probe = document.createElement('canvas');
+    if (typeof probe.getContext !== 'function' || !probe.getContext('2d')) {
+      return;
+    }
+    void confetti({
+      particleCount: isVictory ? 85 : 46,
+      spread: isVictory ? 75 : 58,
+      origin: { y: 0.62 },
+      colors: ['#fde68a', '#f59e0b', '#38bdf8', '#f8fafc'],
+    });
+  } catch {
+    // Degradación silenciosa en entornos sin soporte de canvas
+  }
 }
 
 interface HistoryEntry {
@@ -89,6 +113,7 @@ export function GameTable({
   game,
   localPlayerId,
   modeLabel,
+  botPreview = null,
   onPlayAction,
   onExit,
 }: GameTableProps) {
@@ -118,6 +143,7 @@ export function GameTable({
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedTableCardIds, setSelectedTableCardIds] = useState<string[]>([]);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [historyOpenMobile, setHistoryOpenMobile] = useState(false);
   const [showFigureValues, setShowFigureValues] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(true);
@@ -191,6 +217,7 @@ export function GameTable({
       playDiscardSound(options);
     } else if (game.lastAction.madeEscoba) {
       playEscobaSound(options);
+      fireCelebrationConfetti(false);
     } else {
       playCaptureSound(options);
     }
@@ -231,9 +258,14 @@ export function GameTable({
   useEffect(() => {
     if (prevPhaseRef.current !== 'game_over' && game.phase === 'game_over') {
       playVictorySound({ muted: !soundEnabledRef.current });
+      fireCelebrationConfetti(true);
     }
     prevPhaseRef.current = game.phase;
   }, [game.phase]);
+
+  const botTargetIds = new Set(
+    botPreview?.move.type === 'capture' ? botPreview.move.tableCardIds : [],
+  );
 
   const selectedCard = isLocalTurn
     ? (localHand.find((card) => card.id === selectedCardId) ?? null)
@@ -341,6 +373,13 @@ export function GameTable({
           </button>
           <button
             type="button"
+            className="topbar-button topbar-button--mobile-history"
+            onClick={() => setHistoryOpenMobile((prev) => !prev)}
+          >
+            Historial
+          </button>
+          <button
+            type="button"
             className="topbar-button"
             onClick={() => setRulesOpen(true)}
           >
@@ -405,17 +444,65 @@ export function GameTable({
 
         <div className="table-status">
           {currentPlayer && (
-            <div className="turn-indicator">Turno: {currentPlayer.name}</div>
+            <motion.div
+              key={currentPlayer.id}
+              initial={{ scale: 0.94, opacity: 0.7 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="turn-indicator"
+            >
+              Turno: {currentPlayer.name}
+            </motion.div>
           )}
           {game.lastAction && (
-            <div className="last-action-bar">
+            <motion.div
+              key={lastActionKey ?? 'action'}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="last-action-bar"
+            >
               <p className="last-action-summary">{formatLastAction(game.lastAction)}</p>
               {game.lastAction.madeEscoba && (
-                <span className="escoba-banner">¡ESCOBA!</span>
+                <motion.span
+                  initial={{ scale: 0.5, rotate: -6 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: 'spring', stiffness: 460, damping: 16 }}
+                  className="escoba-banner"
+                >
+                  ¡ESCOBA!
+                </motion.span>
               )}
-            </div>
+            </motion.div>
           )}
         </div>
+
+        <AnimatePresence>
+          {botPreview && (
+            <motion.div
+              key={`${botPreview.playerId}-${botPreview.playedCard.id}`}
+              initial={{ opacity: 0, y: -18, scale: 0.85 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 24 }}
+              className="bot-preview-overlay"
+              role="status"
+            >
+              <div className="bot-preview-card">
+                <span className="bot-preview-badge">
+                  {botPreview.move.type === 'capture'
+                    ? `${botPreview.playerName} levanta`
+                    : `${botPreview.playerName} tira`}
+                </span>
+                <SpanishCard
+                  card={botPreview.playedCard}
+                  compact
+                  showFigureValues={showFigureValues}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="table-middle">
           <section
@@ -441,9 +528,14 @@ export function GameTable({
           >
             <span className="zone-label">Mesa</span>
             {game.escobaDeMano > 0 && (
-              <div className="escoba-mano-banner" role="status">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="escoba-mano-banner"
+                role="status"
+              >
                 ¡Escoba de mano!{game.escobaDeMano === 2 ? ' (Doble)' : ''}
-              </div>
+              </motion.div>
             )}
             <div className="card-row card-row--mesa">
               {game.table.map((card) => (
@@ -451,6 +543,7 @@ export function GameTable({
                   key={card.id}
                   card={card}
                   selected={selectedTableIdSet.has(card.id)}
+                  botTarget={botTargetIds.has(card.id)}
                   disabled={!isPlaying || (onPlayAction ? !isLocalTurn : false)}
                   showFigureValues={showFigureValues}
                   onClick={onPlayAction ? () => handleToggleTableCard(card.id) : undefined}
@@ -611,30 +704,49 @@ export function GameTable({
         </section>
 
         <section
-          className="side-card side-card--history"
+          className={`side-card side-card--history ${
+            historyOpenMobile ? 'side-card--history-open' : ''
+          }`.trim()}
           role="region"
           aria-label="Historial de jugadas"
         >
           <div className="side-card__header">
             <h2 className="side-card__title">Historial de jugadas</h2>
+            {historyOpenMobile && (
+              <button
+                type="button"
+                className="topbar-button topbar-button--close-history"
+                onClick={() => setHistoryOpenMobile(false)}
+              >
+                Cerrar
+              </button>
+            )}
           </div>
           {history.length === 0 ? (
             <p className="history-empty">Sin jugadas en esta ronda.</p>
           ) : (
             <ol className="history-list">
-              {history.map((entry) => (
-                <li key={entry.key} className="history-item">
-                  <span className="history-item__player">{entry.playerName}</span>{' '}
-                  <span className="history-item__action">{entry.verb}</span>{' '}
-                  <span className="history-item__cards">{entry.summaryCards}</span>
-                  {entry.madeEscoba && (
-                    <>
-                      {' '}
-                      <span className="history-escoba-badge">Escoba</span>
-                    </>
-                  )}
-                </li>
-              ))}
+              <AnimatePresence initial={false}>
+                {history.map((entry) => (
+                  <motion.li
+                    key={entry.key}
+                    initial={{ opacity: 0, x: 14 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.22 }}
+                    className="history-item"
+                  >
+                    <span className="history-item__player">{entry.playerName}</span>{' '}
+                    <span className="history-item__action">{entry.verb}</span>{' '}
+                    <span className="history-item__cards">{entry.summaryCards}</span>
+                    {entry.madeEscoba && (
+                      <>
+                        {' '}
+                        <span className="history-escoba-badge">Escoba</span>
+                      </>
+                    )}
+                  </motion.li>
+                ))}
+              </AnimatePresence>
             </ol>
           )}
         </section>

@@ -533,7 +533,10 @@ describe('App — flujo inicial y mesa de juego', () => {
     }
 
     await act(async () => {
-      vi.advanceTimersByTime(650);
+      vi.advanceTimersByTime(450);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(850);
     });
 
     expect(screen.getByText(/bot (levantó|tiró)/i)).toBeInTheDocument();
@@ -576,7 +579,10 @@ describe('App — flujo inicial y mesa de juego', () => {
     }
 
     await act(async () => {
-      vi.advanceTimersByTime(650);
+      vi.advanceTimersByTime(450);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(850);
     });
 
     expect(screen.getByText(/bot 1 (levantó|tiró)/i)).toBeInTheDocument();
@@ -584,7 +590,10 @@ describe('App — flujo inicial y mesa de juego', () => {
     expect(screen.getByText(/turno:\s*bot 2/i)).toBeInTheDocument();
 
     await act(async () => {
-      vi.advanceTimersByTime(650);
+      vi.advanceTimersByTime(450);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(850);
     });
 
     expect(screen.getByText(/bot 2 (levantó|tiró)/i)).toBeInTheDocument();
@@ -1407,7 +1416,10 @@ describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
     expect(soundButton).toHaveAttribute('aria-pressed', 'false');
 
     await act(async () => {
-      vi.advanceTimersByTime(650);
+      vi.advanceTimersByTime(450);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(850);
     });
     expect(discardSpy).toHaveBeenCalledWith({ muted: true });
 
@@ -1519,7 +1531,10 @@ describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
     expect(screen.getAllByText(/turno/i)).toHaveLength(1);
 
     await act(async () => {
-      vi.advanceTimersByTime(650);
+      vi.advanceTimersByTime(450);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(850);
     });
 
     const historyAfterMove2 = within(historyRegion).getAllByRole('listitem');
@@ -1538,7 +1553,10 @@ describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
     expect(historyAfterMove3[2]).toHaveTextContent(/1\s+espadas/i);
 
     await act(async () => {
-      vi.advanceTimersByTime(650);
+      vi.advanceTimersByTime(450);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(850);
     });
 
     const historyAfterMove4 = within(historyRegion).getAllByRole('listitem');
