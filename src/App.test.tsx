@@ -476,4 +476,162 @@ describe('App — flujo inicial y mesa de juego', () => {
       expect(button).not.toBeDisabled();
     }
   });
+
+  it('soporta modalidades de 3 jugadores y 4 jugadores en parejas 2v2 a 21 puntos con revancha', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const fakeUser = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    // Parte 1: 3 jugadores con turnos encadenados de Bot 1 y Bot 2
+    const firstRender = render(<App />);
+
+    await fakeUser.click(screen.getByRole('radio', { name: /3 jugadores/i }));
+    await fakeUser.click(screen.getByRole('button', { name: /jugar/i }));
+
+    const rival3p = screen.getByRole('region', { name: /rival/i });
+    expect(within(rival3p).getByText(/bot 1/i)).toBeInTheDocument();
+    expect(within(rival3p).getByText(/bot 2/i)).toBeInTheDocument();
+    expect(within(rival3p).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(6);
+    expect(rival3p).not.toHaveTextContent(/oros|copas|espadas|bastos|turno|\b(4|5|6|7|10|11|12)\b/i);
+    expect(within(rival3p).queryByLabelText(/de (oros|copas|espadas|bastos)/i)).not.toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: /mazo/i })).getByText(/\b27\b/)).toBeInTheDocument();
+
+    const hand3p = screen.getByRole('region', { name: /tu mano/i });
+    await fakeUser.click(within(hand3p).getByRole('button', { name: '1 de oros' }));
+    await fakeUser.click(screen.getByRole('button', { name: /tirar a la mesa/i }));
+
+    expect(screen.getByText(/turno:\s*bot 1/i)).toBeInTheDocument();
+    for (const button of within(hand3p).getAllByRole('button')) {
+      expect(button).toBeDisabled();
+    }
+
+    await act(async () => {
+      vi.advanceTimersByTime(650);
+    });
+
+    expect(screen.getByText(/bot 1 (levantó|tiró)/i)).toBeInTheDocument();
+    expect(within(rival3p).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(5);
+    expect(screen.getByText(/turno:\s*bot 2/i)).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(650);
+    });
+
+    expect(screen.getByText(/bot 2 (levantó|tiró)/i)).toBeInTheDocument();
+    expect(within(rival3p).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(4);
+    expect(screen.getByText(/turno:\s*tú/i)).toBeInTheDocument();
+    for (const button of within(hand3p).getAllByRole('button')) {
+      expect(button).not.toBeDisabled();
+    }
+
+    firstRender.unmount();
+    vi.useRealTimers();
+
+    // Parte 2: 4 jugadores (2v2) a 21 puntos, resumen agrupado por parejas y revancha
+    const user = userEvent.setup();
+    const secondRender = render(<App />);
+
+    await user.click(screen.getByRole('radio', { name: /4 jugadores \(2v2\)/i }));
+    await user.click(screen.getByRole('radio', { name: /21 puntos/i }));
+    await user.click(screen.getByRole('button', { name: /jugar/i }));
+
+    const rival4p = screen.getByRole('region', { name: /rival/i });
+    expect(within(rival4p).getByText(/bot 1/i)).toBeInTheDocument();
+    expect(within(rival4p).getByText(/bot 2/i)).toBeInTheDocument();
+    expect(within(rival4p).getByText(/bot 3/i)).toBeInTheDocument();
+    expect(within(rival4p).getByText(/equipo a/i)).toBeInTheDocument();
+    expect(within(rival4p).getByText(/pareja/i)).toBeInTheDocument();
+    expect(within(rival4p).getAllByText(/equipo b/i)).toHaveLength(2);
+    expect(within(rival4p).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(9);
+    expect(within(screen.getByRole('region', { name: /tu mano/i })).getByText(/equipo a/i)).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: /mazo/i })).getByText(/\b24\b/)).toBeInTheDocument();
+
+    secondRender.unmount();
+
+    const teamGameOverInitial: GameState = {
+      players: [
+        {
+          id: 'player-1',
+          name: 'Tú',
+          isBot: false,
+          teamId: 0,
+          hand: pickCards(['oros-5']),
+          captured: pickCards(['oros-7', 'oros-1', 'oros-2']),
+          escobas: 0,
+          score: 20,
+        },
+        {
+          id: 'bot-1',
+          name: 'Bot 1',
+          isBot: true,
+          teamId: 1,
+          hand: [],
+          captured: pickCards(['copas-1', 'copas-2']),
+          escobas: 0,
+          score: 14,
+        },
+        {
+          id: 'bot-2',
+          name: 'Bot 2',
+          isBot: true,
+          teamId: 0,
+          hand: [],
+          captured: pickCards(['oros-3']),
+          escobas: 0,
+          score: 20,
+        },
+        {
+          id: 'bot-3',
+          name: 'Bot 3',
+          isBot: true,
+          teamId: 1,
+          hand: [],
+          captured: pickCards(['espadas-1']),
+          escobas: 0,
+          score: 14,
+        },
+      ],
+      table: pickCards(['copas-12']),
+      deck: [],
+      dealerIndex: 3,
+      currentPlayerIndex: 0,
+      lastCapturerId: 'player-1',
+      lastAction: null,
+      targetScore: 21,
+      round: 4,
+      escobaDeMano: 0,
+      phase: 'playing',
+      roundSummary: null,
+      winnerId: null,
+      winnerTeamId: null,
+      isTiebreaker: false,
+    };
+
+    render(<App initialGame={teamGameOverInitial} />);
+
+    await user.click(within(screen.getByRole('region', { name: /tu mano/i })).getByRole('button', { name: '5 de oros' }));
+    await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText(/fin de la partida/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/victoria de tú y bot 2/i)).toBeInTheDocument();
+    const summaryTable = within(dialog).getByRole('table');
+    expect(within(summaryTable).getByText(/tú y bot 2/i)).toBeInTheDocument();
+    expect(within(summaryTable).getByText(/bot 1 y bot 3/i)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: /jugar revancha/i }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const rematchRival = screen.getByRole('region', { name: /rival/i });
+    expect(within(rematchRival).getByText(/bot 1/i)).toBeInTheDocument();
+    expect(within(rematchRival).getByText(/bot 2/i)).toBeInTheDocument();
+    expect(within(rematchRival).getByText(/bot 3/i)).toBeInTheDocument();
+    expect(within(rematchRival).getByText(/equipo a/i)).toBeInTheDocument();
+    expect(within(rematchRival).getByText(/pareja/i)).toBeInTheDocument();
+    expect(within(rematchRival).getAllByText(/equipo b/i)).toHaveLength(2);
+    expect(within(rematchRival).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(9);
+    expect(within(screen.getByRole('region', { name: /tu mano/i })).getByText(/equipo a/i)).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: /tu mano/i })).getAllByRole('button')).toHaveLength(3);
+    expect(within(screen.getByRole('region', { name: /mazo/i })).getByText(/\b24\b/)).toBeInTheDocument();
+  });
 });
