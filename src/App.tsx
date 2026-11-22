@@ -1,49 +1,27 @@
-import { useState } from 'react';
-import { createGame, playCard, startNextRound } from '../shared/engine';
-import type { GameState, PlayerConfig } from '../shared/types';
+import type { GameState } from '../shared/types';
 import { GameTable } from './components/GameTable';
+import { HomeScreen } from './components/HomeScreen';
 import { RoundSummaryModal } from './components/RoundSummaryModal';
+import { useLocalGame } from './hooks/useLocalGame';
 
 export interface AppProps {
   initialGame?: GameState | null;
 }
 
-const DEFAULT_PLAYERS: PlayerConfig[] = [
-  { id: 'player-1', name: 'Tú', isBot: false },
-  { id: 'bot-1', name: 'Bot', isBot: true },
-];
-
-/** Inicia una partida limpia preservando participantes y puntaje objetivo si existen. */
-function createFreshGame(previousGame: GameState | null = null): GameState {
-  const players: PlayerConfig[] = previousGame
-    ? previousGame.players.map((player) => ({
-        id: player.id,
-        name: player.name,
-        isBot: player.isBot,
-      }))
-    : DEFAULT_PLAYERS;
-
-  return createGame({
-    players,
-    targetScore: previousGame?.targetScore ?? 15,
-    dealerIndex: 1,
-  });
-}
-
 export default function App({ initialGame = null }: AppProps = {}) {
-  const [game, setGame] = useState<GameState | null>(initialGame);
-
-  const handleStartGame = () => {
-    setGame(createFreshGame());
-  };
-
-  const handleNextRound = () => {
-    setGame((prev) => (prev ? startNextRound(prev) : null));
-  };
-
-  const handleRematch = () => {
-    setGame((prev) => createFreshGame(prev));
-  };
+  const {
+    difficulty,
+    setDifficulty,
+    playerCount,
+    setPlayerCount,
+    targetScore,
+    setTargetScore,
+    game,
+    startGame,
+    playAction,
+    nextRound,
+    rematch,
+  } = useLocalGame({ initialGame });
 
   if (game) {
     const showRoundModal =
@@ -54,17 +32,13 @@ export default function App({ initialGame = null }: AppProps = {}) {
         <GameTable
           game={game}
           localPlayerId={game.players[0].id}
-          onPlayAction={(action) =>
-            setGame((prev) =>
-              prev && prev.phase === 'playing' ? playCard(prev, prev.players[0].id, action) : prev,
-            )
-          }
+          onPlayAction={playAction}
         />
         {showRoundModal && (
           <RoundSummaryModal
             game={game}
-            onNextRound={handleNextRound}
-            onRematch={handleRematch}
+            onNextRound={nextRound}
+            onRematch={rematch}
           />
         )}
       </main>
@@ -72,17 +46,14 @@ export default function App({ initialGame = null }: AppProps = {}) {
   }
 
   return (
-    <main className="app-shell start-screen">
-      <div className="start-card">
-        <h1 className="start-title">Escoba del 15</h1>
-        <button
-          type="button"
-          className="play-button"
-          onClick={handleStartGame}
-        >
-          Jugar
-        </button>
-      </div>
-    </main>
+    <HomeScreen
+      difficulty={difficulty}
+      playerCount={playerCount}
+      targetScore={targetScore}
+      onDifficultyChange={setDifficulty}
+      onPlayerCountChange={setPlayerCount}
+      onTargetScoreChange={setTargetScore}
+      onStart={startGame}
+    />
   );
 }
