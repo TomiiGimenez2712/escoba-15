@@ -1464,7 +1464,7 @@ describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
     expect(scoreboard).toHaveTextContent(/\bia\b/i);
 
     const initialScoreItems = within(scoreboard).getAllByRole('listitem');
-    const tuInitialScore = initialScoreItems.find((item) => /\btú\b/i.test(item.textContent ?? ''));
+    const tuInitialScore = initialScoreItems.find((item) => /(?:^|[^\p{L}])tú(?=$|[^\p{L}])/iu.test(item.textContent ?? ''));
     const botInitialScore = initialScoreItems.find((item) => /\bbot\b/i.test(item.textContent ?? ''));
     expect(tuInitialScore).toBeDefined();
     expect(botInitialScore).toBeDefined();
@@ -1485,7 +1485,7 @@ describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
 
     const updatedTuScore = within(scoreboard)
       .getAllByRole('listitem')
-      .find((item) => /\btú\b/i.test(item.textContent ?? ''));
+      .find((item) => /(?:^|[^\p{L}])tú(?=$|[^\p{L}])/iu.test(item.textContent ?? ''));
     expect(updatedTuScore).toHaveTextContent(/(?:\b2\s*escobas?|escobas?[:\s]*2\b)/i);
     expect(updatedTuScore).toHaveTextContent(/(?:\b10\s*cartas?|cartas?[:\s]*10\b)/i);
 
