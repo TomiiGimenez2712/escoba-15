@@ -248,4 +248,33 @@ describe('App — flujo inicial y mesa de juego', () => {
     expect(screen.getByText(/5 de oros/i)).toBeInTheDocument();
     expect(screen.getByText(/12 de copas/i)).toBeInTheDocument();
   });
+
+  it('permite jugar una carta en turno humano desde App y pasa el turno a Bot con la mano deshabilitada', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /jugar/i }));
+
+    expect(screen.getByText(/turno:\s*tú/i)).toBeInTheDocument();
+
+    const playerHand = screen.getByRole('region', { name: /tu mano/i });
+    const tableZone = screen.getByRole('region', { name: /mesa/i });
+    expect(within(playerHand).getAllByRole('button')).toHaveLength(3);
+    expect(within(tableZone).getAllByLabelText(/de (oros|copas|espadas|bastos)/i)).toHaveLength(4);
+
+    await user.click(within(playerHand).getByRole('button', { name: '1 de oros' }));
+    await user.click(screen.getByRole('button', { name: /tirar a la mesa/i }));
+
+    const remainingHandButtons = within(playerHand).getAllByRole('button');
+    expect(remainingHandButtons).toHaveLength(2);
+    for (const button of remainingHandButtons) {
+      expect(button).toBeDisabled();
+    }
+
+    expect(within(tableZone).getAllByLabelText(/de (oros|copas|espadas|bastos)/i)).toHaveLength(5);
+    expect(within(tableZone).getByLabelText('1 de oros')).toBeInTheDocument();
+    expect(screen.getByText(/tú tiró 1 de oros/i)).toBeInTheDocument();
+    expect(screen.getByText(/turno:\s*bot/i)).toBeInTheDocument();
+  });
 });
