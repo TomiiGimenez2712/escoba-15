@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createGame } from '../shared/engine';
+import { createGame, playCard } from '../shared/engine';
 import type { GameState } from '../shared/types';
 import { GameTable } from './components/GameTable';
 
@@ -14,7 +14,7 @@ export default function App() {
           { id: 'bot-1', name: 'Bot', isBot: true },
         ],
         targetScore: 15,
-        dealerIndex: 0,
+        dealerIndex: 1,
       })
     );
   };
@@ -22,7 +22,13 @@ export default function App() {
   if (game) {
     return (
       <main className="app-shell">
-        <GameTable game={game} />
+        <GameTable
+          game={game}
+          localPlayerId={game.players[0].id}
+          onPlayAction={(action) =>
+            setGame((prev) => (prev ? playCard(prev, prev.players[0].id, action) : null))
+          }
+        />
       </main>
     );
   }
