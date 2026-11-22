@@ -5,6 +5,10 @@ export interface SpanishCardProps {
   card?: Card;
   faceDown?: boolean;
   compact?: boolean;
+  onClick?: () => void;
+  selected?: boolean;
+  highlighted?: boolean;
+  disabled?: boolean;
 }
 
 const SUIT_META: Record<
@@ -255,7 +259,15 @@ function CardBackArt() {
   );
 }
 
-export function SpanishCard({ card, faceDown = false, compact = false }: SpanishCardProps) {
+export function SpanishCard({
+  card,
+  faceDown = false,
+  compact = false,
+  onClick,
+  selected = false,
+  highlighted = false,
+  disabled = false,
+}: SpanishCardProps) {
   const sizeClass = compact ? 'spanish-card--compact' : '';
 
   if (faceDown || !card) {
@@ -272,27 +284,62 @@ export function SpanishCard({ card, faceDown = false, compact = false }: Spanish
 
   const meta = SUIT_META[card.suit];
   const figureName = FIGURE_NAMES[card.number];
+  const className = [
+    'spanish-card',
+    'spanish-card--front',
+    meta.colorClass,
+    sizeClass,
+    selected ? 'spanish-card--selected' : '',
+    highlighted ? 'spanish-card--highlighted' : '',
+    onClick ? 'spanish-card--interactive' : '',
+    disabled ? 'spanish-card--disabled' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
-  return (
-    <div
-      className={`spanish-card spanish-card--front ${meta.colorClass} ${sizeClass}`.trim()}
-      role="group"
-      aria-label={`${card.number} de ${card.suit}`}
-      data-suit={card.suit}
-      data-number={card.number}
-    >
+  const cardContent = (
+    <>
       <PintaFrame breaks={meta.pintaBreaks} />
 
-      <div className="spanish-card__corner">
+      <span className="spanish-card__corner">
         <span className="spanish-card__number">{card.number}</span>
         <SuitSvg suit={card.suit} className="spanish-card__mini-suit" />
-      </div>
+      </span>
 
-      <div className="spanish-card__center">
+      <span className="spanish-card__center">
         <SuitSvg suit={card.suit} className="spanish-card__suit-art" />
-      </div>
+      </span>
 
       {figureName && <span className="spanish-card__figure">{figureName}</span>}
+    </>
+  );
+
+  const sharedProps = {
+    className,
+    'aria-label': `${card.number} de ${card.suit}`,
+    'data-suit': card.suit,
+    'data-number': card.number,
+    'data-selected': selected ? 'true' : undefined,
+    'data-highlighted': highlighted ? 'true' : undefined,
+  };
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        {...sharedProps}
+        onClick={onClick}
+        disabled={disabled}
+        aria-pressed={selected}
+      >
+        {cardContent}
+      </button>
+    );
+  }
+
+  return (
+    <div role="group" {...sharedProps}>
+      {cardContent}
     </div>
   );
 }

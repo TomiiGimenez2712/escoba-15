@@ -1,13 +1,89 @@
-import type { GameState } from '../../shared/types';
+import { useEffect, useState } from 'react';
+import { findCaptureCombinations } from '../../shared/engine';
+import type { Card, GameState, LastAction, PlayAction } from '../../shared/types';
 import { SpanishCard } from './SpanishCard';
 
 export interface GameTableProps {
   game: GameState;
+  localPlayerId?: string;
+  onPlayAction?: (action: PlayAction) => void;
 }
 
-export function GameTable({ game }: GameTableProps) {
-  const humanPlayer = game.players[0];
-  const opponents = game.players.slice(1);
+function formatCardLabel(card: Card): string {
+  return `${card.number} de ${card.suit}`;
+}
+
+function formatLastAction(lastAction: LastAction): string {
+  const played = formatCardLabel(lastAction.playedCard);
+  if (lastAction.type === 'capture') {
+    const captured = lastAction.capturedCards.map(formatCardLabel).join(', ');
+    return `${lastAction.playerName} levantó ${captured} con ${played}`;
+  }
+  return `${lastAction.playerName} tiró ${played}`;
+}
+
+export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps) {
+  const resolvedLocalPlayerId = localPlayerId ?? game.players[0]?.id;
+  const localPlayer =
+    game.players.find((player) => player.id === resolvedLocalPlayerId) ?? game.players[0];
+  const opponents = game.players.filter((player) => player.id !== localPlayer?.id);
+  const currentPlayer = game.players[game.currentPlayerIndex];
+  const isLocalTurn = Boolean(
+    onPlayAction && currentPlayer && localPlayer && currentPlayer.id === localPlayer.id,
+  );
+
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [selectedComboIndex, setSelectedComboIndex] = useState(0);
+
+  const handSignature = localPlayer?.hand.map((card) => card.id).join(',') ?? '';
+
+  useEffect(() => {
+    setSelectedCardId(null);
+    setSelectedComboIndex(0);
+  }, [handSignature, isLocalTurn]);
+
+  const selectedCard = isLocalTurn
+    ? (localPlayer?.hand.find((card) => card.id === selectedCardId) ?? null)
+    : null;
+  const combinations = selectedCard ? findCaptureCombinations(selectedCard, game.table) : [];
+  const activeComboIndex = selectedComboIndex < combinations.length ? selectedComboIndex : 0;
+  const activeCombination = combinations[activeComboIndex] ?? null;
+  const highlightedCardIds = new Set(
+    activeCombination ? activeCombination.map((card) => card.id) : [],
+  );
+
+  const clearSelection = () => {
+    setSelectedCardId(null);
+    setSelectedComboIndex(0);
+  };
+
+  const handleSelectCard = (cardId: string) => {
+    if (!isLocalTurn) {
+      return;
+    }
+    setSelectedCardId((prev) => (prev === cardId ? null : cardId));
+    setSelectedComboIndex(0);
+  };
+
+  const handleDiscard = () => {
+    if (!selectedCard || !onPlayAction || !isLocalTurn) {
+      return;
+    }
+    onPlayAction({ type: 'discard', cardId: selectedCard.id });
+    clearSelection();
+  };
+
+  const handleCapture = () => {
+    if (!selectedCard || !activeCombination || !onPlayAction || !isLocalTurn) {
+      return;
+    }
+    onPlayAction({
+      type: 'capture',
+      cardId: selectedCard.id,
+      tableCardIds: activeCombination.map((card) => card.id),
+    });
+    clearSelection();
+  };
 
   return (
     <div className="game-table">
@@ -27,6 +103,20 @@ export function GameTable({ game }: GameTableProps) {
           ))}
         </div>
       </section>
+
+      <div className="table-status">
+        {currentPlayer && (
+          <div className="turn-indicator">Turno: {currentPlayer.name}</div>
+        )}
+        {game.lastAction && (
+          <div className="last-action-bar">
+            <p className="last-action-summary">{formatLastAction(game.lastAction)}</p>
+            {game.lastAction.madeEscoba && (
+              <span className="escoba-banner">¡ESCOBA!</span>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="table-middle">
         <section
@@ -58,11 +148,53 @@ export function GameTable({ game }: GameTableProps) {
           )}
           <div className="card-row card-row--mesa">
             {game.table.map((card) => (
-              <SpanishCard key={card.id} card={card} />
+              <SpanishCard
+                key={card.id}
+                card={card}
+                highlighted={highlightedCardIds.has(card.id)}
+              />
             ))}
           </div>
         </section>
       </div>
+
+      {selectedCard && (
+        <div className="action-bar">
+          {combinations.length > 1 && (
+            <div className="combo-chips" role="group" aria-label="Combinaciones posibles">
+              {combinations.map((combo, index) => (
+                <button
+                  key={combo.map((card) => card.id).join('+')}
+                  type="button"
+                  className={`combo-chip ${index === activeComboIndex ? 'combo-chip--active' : ''}`.trim()}
+                  aria-pressed={index === activeComboIndex}
+                  onClick={() => setSelectedComboIndex(index)}
+                >
+                  {combo.map(formatCardLabel).join(' + ')}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="action-buttons">
+            {activeCombination && (
+              <button
+                type="button"
+                className="action-button action-button--capture"
+                onClick={handleCapture}
+              >
+                Levantar (15)
+              </button>
+            )}
+            <button
+              type="button"
+              className="action-button action-button--discard"
+              onClick={handleDiscard}
+            >
+              Tirar a la mesa
+            </button>
+          </div>
+        </div>
+      )}
 
       <section
         className="table-zone table-zone--player"
@@ -71,8 +203,14 @@ export function GameTable({ game }: GameTableProps) {
       >
         <span className="zone-label">Tu mano</span>
         <div className="card-row card-row--player">
-          {humanPlayer?.hand.map((card) => (
-            <SpanishCard key={card.id} card={card} />
+          {localPlayer?.hand.map((card) => (
+            <SpanishCard
+              key={card.id}
+              card={card}
+              selected={selectedCard?.id === card.id}
+              disabled={onPlayAction ? !isLocalTurn : false}
+              onClick={onPlayAction ? () => handleSelectCard(card.id) : undefined}
+            />
           ))}
         </div>
       </section>
