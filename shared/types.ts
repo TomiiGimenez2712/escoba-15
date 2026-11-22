@@ -103,3 +103,34 @@ export interface GameState {
   winnerTeamId: 0 | 1 | null;
   isTiebreaker: boolean;
 }
+
+export interface RoomPlayerInfo {
+  id: string;
+  name: string;
+  connected: boolean;
+}
+
+export interface PublicPlayer extends Omit<Player, 'hand'> {
+  hand?: Card[];
+  handCount: number;
+  connected: boolean;
+}
+
+export interface PlayerGameView extends Omit<GameState, 'players' | 'deck'> {
+  players: PublicPlayer[];
+  deckCount: number;
+  localPlayerId: string;
+}
+
+export type RoomStatus = 'waiting' | 'playing';
+
+export interface RoomSnapshot {
+  code: string;
+  status: RoomStatus;
+  maxPlayers: number;
+  targetScore: TargetScore;
+  players: RoomPlayerInfo[];
+  selfPlayerId: string;
+  sessionToken?: string;
+  gameView: PlayerGameView | null;
+}
