@@ -35,6 +35,26 @@ export interface CreateGameOptions {
   deck?: Card[];
 }
 
+export type PlayAction =
+  | {
+      type: 'capture';
+      cardId: string;
+      tableCardIds: string[];
+    }
+  | {
+      type: 'discard';
+      cardId: string;
+    };
+
+export interface LastAction {
+  playerId: string;
+  playerName: string;
+  type: PlayAction['type'];
+  playedCard: Card;
+  capturedCards: Card[];
+  madeEscoba: boolean;
+}
+
 export interface GameState {
   players: Player[];
   table: Card[];
@@ -42,6 +62,7 @@ export interface GameState {
   dealerIndex: number;
   currentPlayerIndex: number;
   lastCapturerId: string | null;
+  lastAction: LastAction | null;
   targetScore: TargetScore;
   round: number;
   escobaDeMano: 0 | 1 | 2;

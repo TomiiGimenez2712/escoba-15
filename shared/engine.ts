@@ -119,8 +119,41 @@ export function createGame(options: CreateGameOptions): GameState {
     dealerIndex,
     currentPlayerIndex: (dealerIndex + 1) % players.length,
     lastCapturerId: escobaDeMano > 0 ? players[dealerIndex].id : null,
+    lastAction: null,
     targetScore,
     round: 1,
     escobaDeMano,
   };
+}
+
+/** Devuelve todos los subconjuntos no vacíos de la mesa que suman 15 junto con `handCard`. */
+export function findCaptureCombinations(handCard: Card, tableCards: readonly Card[]): Card[][] {
+  const target = ESCOBA_SUM - handCard.value;
+  if (target <= 0 || tableCards.length === 0) {
+    return [];
+  }
+
+  const combinations: Card[][] = [];
+  const current: Card[] = [];
+
+  function backtrack(startIndex: number, currentSum: number): void {
+    if (currentSum === target) {
+      combinations.push([...current]);
+      return;
+    }
+
+    for (let i = startIndex; i < tableCards.length; i += 1) {
+      const card = tableCards[i];
+      const nextSum = currentSum + card.value;
+      if (nextSum > target) {
+        continue;
+      }
+      current.push(card);
+      backtrack(i + 1, nextSum);
+      current.pop();
+    }
+  }
+
+  backtrack(0, 0);
+  return combinations;
 }
