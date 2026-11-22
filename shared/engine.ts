@@ -6,6 +6,30 @@ const CARDS_PER_HAND = 3;
 const TABLE_CARD_COUNT = 4;
 const DECK_SIZE = 40;
 const ESCOBA_SUM = 15;
+const DOUBLE_ESCOBA_SUM = 30;
+
+/** Determina si 4 cartas que suman 30 admiten una partición en dos grupos de suma 15. */
+function canPartitionIntoTwo15s(cards: readonly Card[]): boolean {
+  if (cards.length !== TABLE_CARD_COUNT) {
+    return false;
+  }
+  const [first, ...rest] = cards;
+  // Con valores de baraja española (1..10), ninguna carta alcanza 15 por sí sola,
+  // por lo que toda partición válida en suma 30 es de 2+2 y una incluye a `first`.
+  return rest.some((card) => first.value + card.value === ESCOBA_SUM);
+}
+
+/** Calcula cuántas escobas de mano (0, 1 o 2) se forman con las cartas iniciales de la mesa. */
+function detectEscobaDeMano(tableCards: readonly Card[]): GameState['escobaDeMano'] {
+  const sum = tableCards.reduce((acc, card) => acc + card.value, 0);
+  if (sum === ESCOBA_SUM) {
+    return 1;
+  }
+  if (sum === DOUBLE_ESCOBA_SUM && canPartitionIntoTwo15s(tableCards)) {
+    return 2;
+  }
+  return 0;
+}
 
 /** Valida que el mazo contenga exactamente 40 cartas únicas de baraja española. */
 function validateDeck(deck: readonly Card[]): void {
@@ -80,8 +104,7 @@ export function createGame(options: CreateGameOptions): GameState {
   const initialTable = sourceDeck.slice(tableStart, tableStart + TABLE_CARD_COUNT);
   const deck = sourceDeck.slice(tableStart + TABLE_CARD_COUNT);
 
-  const tableSum = initialTable.reduce((sum, card) => sum + card.value, 0);
-  const escobaDeMano: GameState['escobaDeMano'] = tableSum === ESCOBA_SUM ? 1 : 0;
+  const escobaDeMano = detectEscobaDeMano(initialTable);
 
   if (escobaDeMano > 0) {
     const dealer = players[dealerIndex];
