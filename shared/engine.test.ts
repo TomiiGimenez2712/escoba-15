@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDeck } from './deck';
-import { createGame, findCaptureCombinations, playCard } from './engine';
+import { createGame, findCaptureCombinations, playCard, startNextRound } from './engine';
 
 describe('shared/engine — createGame', () => {
   it('inicia una partida de 2 jugadores repartiendo 3 cartas c/u, 4 en mesa y 30 en el mazo', () => {
@@ -438,5 +438,132 @@ describe('shared/engine — playCard', () => {
     expect(noCaptureState.phase).toBe('round_end');
     expect(noCaptureState.roundSummary?.leftoverWinnerId).toBeNull();
     expect(noCaptureState.roundSummary?.leftoverCards).toEqual([]);
+  });
+});
+
+describe('shared/engine — startNextRound', () => {
+  it('rechaza fases inválidas sin mutar, rota repartidor con Escoba de mano al iniciar nueva ronda y resuelve desempate hasta game_over', () => {
+    const baseDeck = createDeck();
+    const card = (id: string) => baseDeck.find((c) => c.id === id)!;
+    const baseState = createGame({
+      players: [
+        { id: 'p1', name: 'Tú' },
+        { id: 'p2', name: 'Bot', isBot: true },
+      ],
+      targetScore: 15,
+      dealerIndex: 0,
+      deck: baseDeck,
+    });
+
+    // 1) Bloqueo fuera de 'round_end' sin mutar estado
+    const playingSnapshot = structuredClone(baseState);
+    expect(() => startNextRound(baseState)).toThrow(/\S/);
+    expect(baseState).toEqual(playingSnapshot);
+
+    const gameOverState = { ...baseState, phase: 'game_over' as const, winnerId: 'p1' };
+    const gameOverSnapshot = structuredClone(gameOverState);
+    expect(() => startNextRound(gameOverState)).toThrow(/\S/);
+    expect(gameOverState).toEqual(gameOverSnapshot);
+
+    // 2) Desde 'round_end' con desempate activo e igualados >= targetScore
+    const tableIds = ['oros-1', 'oros-2', 'oros-5', 'oros-7'];
+    const tableCards = tableIds.map(card);
+    const otherCards = baseDeck.filter((c) => !tableIds.includes(c.id));
+    const customDeck = [...otherCards.slice(0, 6), ...tableCards, ...otherCards.slice(6)];
+
+    const tiebreakerState = {
+      ...baseState,
+      players: [
+        {
+          ...baseState.players[0],
+          hand: [],
+          captured: [card('bastos-1'), card('bastos-2')],
+          escobas: 3,
+          score: 16,
+        },
+        {
+          ...baseState.players[1],
+          hand: [],
+          captured: [card('copas-1')],
+          escobas: 2,
+          score: 16,
+        },
+      ],
+      table: [],
+      deck: [],
+      dealerIndex: 1,
+      currentPlayerIndex: 0,
+      lastCapturerId: 'p2',
+      lastAction: {
+        playerId: 'p2',
+        playerName: 'Bot',
+        type: 'discard' as const,
+        playedCard: card('copas-1'),
+        capturedCards: [],
+        madeEscoba: false,
+      },
+      round: 2,
+      phase: 'round_end' as const,
+      isTiebreaker: true,
+      winnerId: null,
+      winnerTeamId: null,
+      roundSummary: {
+        round: 2,
+        leftoverCards: [],
+        leftoverWinnerId: null,
+        participants: [],
+        isTiebreaker: true,
+        winnerId: null,
+        winnerTeamId: null,
+      },
+    };
+    const tiebreakerSnapshot = structuredClone(tiebreakerState);
+
+    const nextState = startNextRound(tiebreakerState, customDeck);
+
+    expect(tiebreakerState).toEqual(tiebreakerSnapshot);
+    expect(nextState.phase).toBe('playing');
+    expect(nextState.dealerIndex).toBe(0);
+    expect(nextState.currentPlayerIndex).toBe(1);
+    expect(nextState.round).toBe(3);
+    expect(nextState.targetScore).toBe(15);
+    expect(nextState.isTiebreaker).toBe(true);
+    expect(nextState.roundSummary).toBeNull();
+    expect(nextState.lastAction).toBeNull();
+    expect(nextState.winnerId).toBeNull();
+    expect(nextState.winnerTeamId).toBeNull();
+    expect(nextState.escobaDeMano).toBe(1);
+    expect(nextState.table).toEqual([]);
+    expect(nextState.lastCapturerId).toBe('p1');
+    expect(nextState.deck).toEqual(customDeck.slice(10));
+
+    expect(nextState.players[0].hand).toEqual(customDeck.slice(0, 3));
+    expect(nextState.players[0].score).toBe(16);
+    expect(nextState.players[0].escobas).toBe(1);
+    expect(nextState.players[0].captured).toEqual(tableCards);
+
+    expect(nextState.players[1].hand).toEqual(customDeck.slice(3, 6));
+    expect(nextState.players[1].score).toBe(16);
+    expect(nextState.players[1].escobas).toBe(0);
+    expect(nextState.players[1].captured).toEqual([]);
+
+    // 3) Completar la ronda de desempate rompiendo la paridad hasta game_over
+    let roundState = nextState;
+    for (let turn = 0; turn < 36; turn += 1) {
+      const current = roundState.players[roundState.currentPlayerIndex];
+      roundState = playCard(roundState, current.id, {
+        type: 'discard',
+        cardId: current.hand[0].id,
+      });
+    }
+
+    expect(roundState.phase).toBe('game_over');
+    expect(roundState.isTiebreaker).toBe(false);
+    expect(roundState.winnerId).toBe('p1');
+    expect(roundState.winnerTeamId).toBeNull();
+    expect(roundState.players[0].score).toBe(21);
+    expect(roundState.players[1].score).toBe(16);
+    expect(roundState.roundSummary?.winnerId).toBe('p1');
+    expect(roundState.roundSummary?.isTiebreaker).toBe(false);
   });
 });
