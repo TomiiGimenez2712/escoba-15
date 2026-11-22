@@ -55,6 +55,35 @@ export interface LastAction {
   madeEscoba: boolean;
 }
 
+export type GamePhase = 'playing' | 'round_end' | 'game_over';
+
+export interface ParticipantRoundScore {
+  participantId: string;
+  label: string;
+  teamId?: 0 | 1;
+  playerIds: string[];
+  escobas: number;
+  sieteDeOros: 0 | 1;
+  sietes: 0 | 1;
+  oros: 0 | 1;
+  cartas: 0 | 1;
+  roundTotal: number;
+  totalScore: number;
+  totalCardsCount: number;
+  orosCount: number;
+  sietesCount: number;
+}
+
+export interface RoundScoreSummary {
+  round: number;
+  leftoverCards: Card[];
+  leftoverWinnerId: string | null;
+  participants: ParticipantRoundScore[];
+  isTiebreaker: boolean;
+  winnerId: string | null;
+  winnerTeamId: 0 | 1 | null;
+}
+
 export interface GameState {
   players: Player[];
   table: Card[];
@@ -66,4 +95,9 @@ export interface GameState {
   targetScore: TargetScore;
   round: number;
   escobaDeMano: 0 | 1 | 2;
+  phase: GamePhase;
+  roundSummary: RoundScoreSummary | null;
+  winnerId: string | null;
+  winnerTeamId: 0 | 1 | null;
+  isTiebreaker: boolean;
 }

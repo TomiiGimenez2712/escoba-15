@@ -132,6 +132,11 @@ export function createGame(options: CreateGameOptions): GameState {
     targetScore,
     round: 1,
     escobaDeMano,
+    phase: 'playing',
+    roundSummary: null,
+    winnerId: null,
+    winnerTeamId: null,
+    isTiebreaker: false,
   };
 }
 
