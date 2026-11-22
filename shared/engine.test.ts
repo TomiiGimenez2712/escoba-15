@@ -102,4 +102,39 @@ describe('shared/engine — createGame', () => {
     expect(state.players[1].escobas).toBe(1);
     expect(state.players[1].captured).toEqual(tableCards);
   });
+
+  it('detecta Escoba de mano de 30 solo cuando las 4 cartas se particionan en dos grupos de 15', () => {
+    const buildDeckWithTable = (tableIds: string[]) => {
+      const baseDeck = createDeck();
+      const tableCards = tableIds.map((id) => baseDeck.find((c) => c.id === id)!);
+      const otherCards = baseDeck.filter((c) => !tableIds.includes(c.id));
+      return {
+        tableCards,
+        deck: [...otherCards.slice(0, 6), ...tableCards, ...otherCards.slice(6)],
+      };
+    };
+
+    const players = [
+      { id: 'p1', name: 'Tú' },
+      { id: 'p2', name: 'Bot', isBot: true },
+    ];
+
+    const valid30 = buildDeckWithTable(['oros-12', 'oros-5', 'copas-11', 'copas-6']);
+    const validState = createGame({ players, dealerIndex: 0, deck: valid30.deck });
+
+    expect(validState.escobaDeMano).toBe(2);
+    expect(validState.table).toEqual([]);
+    expect(validState.lastCapturerId).toBe('p1');
+    expect(validState.players[0].escobas).toBe(2);
+    expect(validState.players[0].captured).toEqual(valid30.tableCards);
+
+    const invalid30 = buildDeckWithTable(['oros-12', 'oros-11', 'oros-10', 'oros-3']);
+    const invalidState = createGame({ players, dealerIndex: 0, deck: invalid30.deck });
+
+    expect(invalidState.escobaDeMano).toBe(0);
+    expect(invalidState.table).toEqual(invalid30.tableCards);
+    expect(invalidState.players[0].captured).toEqual([]);
+    expect(invalidState.players[0].escobas).toBe(0);
+    expect(invalidState.lastCapturerId).toBeNull();
+  });
 });
