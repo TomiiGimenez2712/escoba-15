@@ -3,9 +3,64 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDeck } from '../shared/deck';
 import { createGame, playCard } from '../shared/engine';
-import type { Card, GameState } from '../shared/types';
+import type { Card, GameState, RoomSnapshot } from '../shared/types';
 import App from './App';
 import { GameTable } from './components/GameTable';
+
+type SocketListener = (...args: unknown[]) => void;
+
+const { mockIo, fakeSocket, resetFakeSocket, triggerServerEvent } = vi.hoisted(() => {
+  const listeners = new Map<string, Set<SocketListener>>();
+
+  const socket = {
+    on: vi.fn((event: string, listener: SocketListener) => {
+      if (!listeners.has(event)) {
+        listeners.set(event, new Set());
+      }
+      listeners.get(event)!.add(listener);
+      return socket;
+    }),
+    off: vi.fn((event: string, listener?: SocketListener) => {
+      if (!listener) {
+        listeners.delete(event);
+      } else {
+        listeners.get(event)?.delete(listener);
+      }
+      return socket;
+    }),
+    emit: vi.fn(),
+    disconnect: vi.fn(),
+  };
+
+  const ioFn = vi.fn(() => socket);
+
+  const reset = () => {
+    listeners.clear();
+    socket.on.mockClear();
+    socket.off.mockClear();
+    socket.emit.mockClear();
+    socket.disconnect.mockClear();
+    ioFn.mockClear();
+  };
+
+  const trigger = (event: string, ...args: unknown[]) => {
+    for (const listener of listeners.get(event) ?? []) {
+      listener(...args);
+    }
+  };
+
+  return {
+    mockIo: ioFn,
+    fakeSocket: socket,
+    resetFakeSocket: reset,
+    triggerServerEvent: trigger,
+  };
+});
+
+vi.mock('socket.io-client', () => ({
+  io: mockIo,
+  default: mockIo,
+}));
 
 function pickCards(ids: string[]): Card[] {
   const byId = new Map(createDeck().map((card) => [card.id, card]));
@@ -633,5 +688,82 @@ describe('App — flujo inicial y mesa de juego', () => {
     expect(within(screen.getByRole('region', { name: /tu mano/i })).getByText(/equipo a/i)).toBeInTheDocument();
     expect(within(screen.getByRole('region', { name: /tu mano/i })).getAllByRole('button')).toHaveLength(3);
     expect(within(screen.getByRole('region', { name: /mazo/i })).getByText(/\b24\b/)).toBeInTheDocument();
+  });
+});
+
+describe('App — lobby online y salas con código (H5)', () => {
+  const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+
+  afterEach(() => {
+    resetFakeSocket();
+    if (originalClipboardDescriptor) {
+      Object.defineProperty(navigator, 'clipboard', originalClipboardDescriptor);
+    } else {
+      delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+    vi.restoreAllMocks();
+  });
+
+  it('permite alternar a Online con un amigo, validar nombre, crear sala a 21 puntos y copiar código y enlace', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(<App />);
+
+    const vsAiTab = screen.getByRole('tab', { name: /contra ia/i });
+    const onlineTab = screen.getByRole('tab', { name: /online con un amigo/i });
+    expect(vsAiTab).toHaveAttribute('aria-selected', 'true');
+    expect(onlineTab).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('button', { name: /^jugar$/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /medio/i })).toBeInTheDocument();
+    expect(mockIo).not.toHaveBeenCalled();
+
+    await user.click(onlineTab);
+
+    expect(onlineTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('button', { name: /^jugar$/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /crear sala/i }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(mockIo).not.toHaveBeenCalled();
+    expect(fakeSocket.emit).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText(/nombre/i), 'Ana');
+    await user.click(screen.getByRole('radio', { name: /21 puntos/i }));
+    await user.click(screen.getByRole('button', { name: /crear sala/i }));
+
+    expect(mockIo).toHaveBeenCalledTimes(1);
+    const createCall = fakeSocket.emit.mock.calls.find(([event]) => event === 'room:create');
+    expect(createCall).toBeDefined();
+    expect(createCall?.[1]).toEqual({ playerName: 'Ana', targetScore: 21 });
+
+    const waitingSnapshot: RoomSnapshot = {
+      code: 'K7M9P',
+      status: 'waiting',
+      maxPlayers: 2,
+      targetScore: 21,
+      players: [{ id: 'p1', name: 'Ana', connected: true }],
+      selfPlayerId: 'p1',
+      sessionToken: 'token-1',
+      gameView: null,
+    };
+
+    act(() => {
+      triggerServerEvent('room:state', waitingSnapshot);
+    });
+
+    expect(screen.getByText('K7M9P')).toBeInTheDocument();
+    expect(screen.getByText(/ana/i)).toBeInTheDocument();
+    expect(screen.getByText(/esperando a tu amigo\.\.\./i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /copiar código/i }));
+    expect(writeText).toHaveBeenLastCalledWith('K7M9P');
+
+    await user.click(screen.getByRole('button', { name: /copiar enlace/i }));
+    expect(writeText).toHaveBeenLastCalledWith(expect.stringMatching(/\?sala=K7M9P$/));
   });
 });
