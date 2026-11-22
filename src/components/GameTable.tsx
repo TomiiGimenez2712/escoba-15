@@ -19,8 +19,17 @@ import { SpanishCard } from './SpanishCard';
 export interface GameTableProps {
   game: GameState | PlayerGameView;
   localPlayerId?: string;
+  modeLabel?: string;
   onPlayAction?: (action: PlayAction) => void;
   onExit?: () => void;
+}
+
+interface HistoryEntry {
+  key: string;
+  playerName: string;
+  verb: 'capturó' | 'descartó';
+  summaryCards: string;
+  madeEscoba: boolean;
 }
 
 function getLastActionKey(lastAction: LastAction | null): string | null {
@@ -33,6 +42,14 @@ function getLastActionKey(lastAction: LastAction | null): string | null {
 
 function formatCardLabel(card: Card): string {
   return `${card.number} de ${card.suit}`;
+}
+
+function capitalizeSuit(suit: Card['suit']): string {
+  return suit.charAt(0).toUpperCase() + suit.slice(1);
+}
+
+function formatCompactCard(card: Card): string {
+  return `${card.number} ${capitalizeSuit(card.suit)}`;
 }
 
 function formatLastAction(lastAction: LastAction): string {
@@ -63,7 +80,13 @@ function getOpponentTeamMeta(
   };
 }
 
-export function GameTable({ game, localPlayerId, onPlayAction, onExit }: GameTableProps) {
+export function GameTable({
+  game,
+  localPlayerId,
+  modeLabel,
+  onPlayAction,
+  onExit,
+}: GameTableProps) {
   const resolvedLocalPlayerId = localPlayerId ?? game.players[0]?.id;
   const localPlayer =
     game.players.find((player) => player.id === resolvedLocalPlayerId) ?? game.players[0];
@@ -72,6 +95,11 @@ export function GameTable({ game, localPlayerId, onPlayAction, onExit }: GameTab
   const deckCount = 'deck' in game ? game.deck.length : game.deckCount;
   const localTeamLabel =
     localPlayer?.teamId !== undefined ? getTeamName(localPlayer.teamId) : null;
+  const isTeams2v2 =
+    game.players.length === 4 && game.players.every((player) => player.teamId !== undefined);
+  const modalityLabel = isTeams2v2
+    ? 'Parejas 2v2 · 4 jugadores'
+    : `${game.players.length} jugadores`;
   const currentPlayer = game.players[game.currentPlayerIndex];
   const isPlaying = game.phase === 'playing';
   const isLocalTurn = Boolean(
@@ -87,9 +115,11 @@ export function GameTable({ game, localPlayerId, onPlayAction, onExit }: GameTab
   const [rulesOpen, setRulesOpen] = useState(false);
   const [showFigureValues, setShowFigureValues] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const soundEnabledRef = useRef(soundEnabled);
   const lastActionKeyRef = useRef<string | null>(null);
+  const lastHistoryKeyRef = useRef<string | null>(null);
   const prevPhaseRef = useRef(game.phase);
 
   useEffect(() => {
@@ -126,6 +156,38 @@ export function GameTable({ game, localPlayerId, onPlayAction, onExit }: GameTab
       playCaptureSound(options);
     }
   }, [lastActionKey, game.lastAction]);
+
+  useEffect(() => {
+    const action = game.lastAction;
+    if (!action || !lastActionKey) {
+      lastHistoryKeyRef.current = null;
+      setHistory((prev) => (prev.length === 0 ? prev : []));
+      return;
+    }
+
+    const roundKey = `${game.round}|${lastActionKey}`;
+    if (lastHistoryKeyRef.current === roundKey) {
+      return;
+    }
+
+    lastHistoryKeyRef.current = roundKey;
+    const playedSummary = formatCompactCard(action.playedCard);
+    const summaryCards =
+      action.type === 'capture'
+        ? `${playedSummary} → ${action.capturedCards.map(formatCompactCard).join(', ')}`
+        : playedSummary;
+    const newEntry: HistoryEntry = {
+      key: roundKey,
+      playerName: action.playerName,
+      verb: action.type === 'capture' ? 'capturó' : 'descartó',
+      summaryCards,
+      madeEscoba: action.madeEscoba,
+    };
+
+    setHistory((prev) =>
+      prev.some((entry) => entry.key === roundKey) ? prev : [...prev, newEntry],
+    );
+  }, [game.lastAction, game.round, lastActionKey]);
 
   useEffect(() => {
     if (prevPhaseRef.current !== 'game_over' && game.phase === 'game_over') {
@@ -180,6 +242,10 @@ export function GameTable({ game, localPlayerId, onPlayAction, onExit }: GameTab
   return (
     <div className="game-table">
       <header className="table-topbar">
+        <div className="table-topbar__meta">
+          <span className="topbar-pill">{`Ronda ${game.round}`}</span>{' '}
+          <span className="topbar-pill">{`Meta ${game.targetScore}`}</span>
+        </div>
         <div className="table-topbar__actions">
           <button
             type="button"
@@ -215,168 +281,252 @@ export function GameTable({ game, localPlayerId, onPlayAction, onExit }: GameTab
           )}
         </div>
       </header>
-      <section
-        className="table-zone table-zone--rival"
-        role="region"
-        aria-label="Rival"
-      >
-        <span className="zone-label">Rival</span>
-        <div
-          className={`opponent-seats ${opponents.length > 1 ? 'opponent-seats--multi' : ''}`.trim()}
-        >
-          {opponents.map((opponent) => {
-            const teamMeta = getOpponentTeamMeta(opponent.teamId, localPlayer?.teamId);
-            const hiddenCount = opponent.hand
-              ? opponent.hand.length
-              : 'handCount' in opponent
-                ? opponent.handCount
-                : 0;
-
-            return (
-              <div
-                key={opponent.id}
-                className={`opponent-seat ${teamMeta?.isPartner ? 'opponent-seat--partner' : ''}`.trim()}
-              >
-                <div className="opponent-seat__header">
-                  <span className="opponent-seat__name">{opponent.name}</span>
-                  {teamMeta && (
-                    <span
-                      className={`team-badge ${
-                        teamMeta.isPartner ? 'team-badge--partner' : 'team-badge--rival'
-                      }`}
-                    >
-                      {teamMeta.label}
-                    </span>
-                  )}
-                </div>
-                <div className="opponent-hand">
-                  {Array.from({ length: hiddenCount }, (_, index) => (
-                    <SpanishCard key={`${opponent.id}-back-${index}`} faceDown compact />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <div className="table-status">
-        {currentPlayer && (
-          <div className="turn-indicator">Turno: {currentPlayer.name}</div>
-        )}
-        {game.lastAction && (
-          <div className="last-action-bar">
-            <p className="last-action-summary">{formatLastAction(game.lastAction)}</p>
-            {game.lastAction.madeEscoba && (
-              <span className="escoba-banner">¡ESCOBA!</span>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="table-middle">
+      <div className="table-felt">
         <section
-          className="table-zone table-zone--deck"
+          className="table-zone table-zone--rival"
           role="region"
-          aria-label="Mazo"
+          aria-label="Rival"
         >
-          <span className="zone-label">Mazo</span>
-          <div className="deck-stack">
-            {deckCount > 0 ? (
-              <SpanishCard faceDown compact />
-            ) : (
-              <div className="deck-empty" aria-hidden="true" />
-            )}
-            <span className="deck-count">{deckCount}</span>
+          <span className="zone-label">Rival</span>
+          <div
+            className={`opponent-seats ${opponents.length > 1 ? 'opponent-seats--multi' : ''}`.trim()}
+          >
+            {opponents.map((opponent) => {
+              const teamMeta = getOpponentTeamMeta(opponent.teamId, localPlayer?.teamId);
+              const hiddenCount = opponent.hand
+                ? opponent.hand.length
+                : 'handCount' in opponent
+                  ? opponent.handCount
+                  : 0;
+
+              return (
+                <div
+                  key={opponent.id}
+                  className={`opponent-seat ${teamMeta?.isPartner ? 'opponent-seat--partner' : ''}`.trim()}
+                >
+                  <div className="opponent-seat__header">
+                    <span className="opponent-seat__name">{opponent.name}</span>
+                    {teamMeta && (
+                      <span
+                        className={`team-badge ${
+                          teamMeta.isPartner ? 'team-badge--partner' : 'team-badge--rival'
+                        }`}
+                      >
+                        {teamMeta.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="opponent-hand">
+                    {Array.from({ length: hiddenCount }, (_, index) => (
+                      <SpanishCard key={`${opponent.id}-back-${index}`} faceDown compact />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
 
-        <section
-          className="table-zone table-zone--mesa"
-          role="region"
-          aria-label="Mesa"
-        >
-          <span className="zone-label">Mesa</span>
-          {game.escobaDeMano > 0 && (
-            <div className="escoba-mano-banner" role="status">
-              ¡Escoba de mano!{game.escobaDeMano === 2 ? ' (Doble)' : ''}
+        <div className="table-status">
+          {currentPlayer && (
+            <div className="turn-indicator">Turno: {currentPlayer.name}</div>
+          )}
+          {game.lastAction && (
+            <div className="last-action-bar">
+              <p className="last-action-summary">{formatLastAction(game.lastAction)}</p>
+              {game.lastAction.madeEscoba && (
+                <span className="escoba-banner">¡ESCOBA!</span>
+              )}
             </div>
           )}
-          <div className="card-row card-row--mesa">
-            {game.table.map((card) => (
+        </div>
+
+        <div className="table-middle">
+          <section
+            className="table-zone table-zone--deck"
+            role="region"
+            aria-label="Mazo"
+          >
+            <span className="zone-label">Mazo</span>
+            <div className="deck-stack">
+              {deckCount > 0 ? (
+                <SpanishCard faceDown compact />
+              ) : (
+                <div className="deck-empty" aria-hidden="true" />
+              )}
+              <span className="deck-count">{deckCount}</span>
+            </div>
+          </section>
+
+          <section
+            className="table-zone table-zone--mesa"
+            role="region"
+            aria-label="Mesa"
+          >
+            <span className="zone-label">Mesa</span>
+            {game.escobaDeMano > 0 && (
+              <div className="escoba-mano-banner" role="status">
+                ¡Escoba de mano!{game.escobaDeMano === 2 ? ' (Doble)' : ''}
+              </div>
+            )}
+            <div className="card-row card-row--mesa">
+              {game.table.map((card) => (
+                <SpanishCard
+                  key={card.id}
+                  card={card}
+                  highlighted={highlightedCardIds.has(card.id)}
+                  showFigureValues={showFigureValues}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {selectedCard && (
+          <div className="action-bar">
+            {combinations.length > 1 && (
+              <div className="combo-chips" role="group" aria-label="Combinaciones posibles">
+                {combinations.map((combo, index) => (
+                  <button
+                    key={combo.map((card) => card.id).join('+')}
+                    type="button"
+                    className={`combo-chip ${index === activeComboIndex ? 'combo-chip--active' : ''}`.trim()}
+                    aria-pressed={index === activeComboIndex}
+                    onClick={() => setSelectedComboIndex(index)}
+                  >
+                    {combo.map(formatCardLabel).join(' + ')}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="action-buttons">
+              {activeCombination && (
+                <button
+                  type="button"
+                  className="action-button action-button--capture"
+                  onClick={handleCapture}
+                >
+                  Levantar (15)
+                </button>
+              )}
+              <button
+                type="button"
+                className="action-button action-button--discard"
+                onClick={handleDiscard}
+              >
+                Tirar a la mesa
+              </button>
+            </div>
+          </div>
+        )}
+
+        <section
+          className="table-zone table-zone--player"
+          role="region"
+          aria-label="Tu mano"
+        >
+          <div className="player-zone-header">
+            <span className="zone-label">Tu mano</span>
+            {localTeamLabel && (
+              <span className="team-badge team-badge--partner">{localTeamLabel}</span>
+            )}
+          </div>
+          <div className="card-row card-row--player">
+            {localHand.map((card) => (
               <SpanishCard
                 key={card.id}
                 card={card}
-                highlighted={highlightedCardIds.has(card.id)}
+                selected={selectedCard?.id === card.id}
+                disabled={!isPlaying || (onPlayAction ? !isLocalTurn : false)}
                 showFigureValues={showFigureValues}
+                onClick={onPlayAction ? () => handleSelectCard(card.id) : undefined}
               />
             ))}
           </div>
         </section>
       </div>
 
-      {selectedCard && (
-        <div className="action-bar">
-          {combinations.length > 1 && (
-            <div className="combo-chips" role="group" aria-label="Combinaciones posibles">
-              {combinations.map((combo, index) => (
-                <button
-                  key={combo.map((card) => card.id).join('+')}
-                  type="button"
-                  className={`combo-chip ${index === activeComboIndex ? 'combo-chip--active' : ''}`.trim()}
-                  aria-pressed={index === activeComboIndex}
-                  onClick={() => setSelectedComboIndex(index)}
-                >
-                  {combo.map(formatCardLabel).join(' + ')}
-                </button>
-              ))}
+      <aside className="table-sidebar">
+        <section
+          className="side-card side-card--scoreboard"
+          role="region"
+          aria-label="Marcador"
+        >
+          <div className="side-card__header">
+            <h2 className="side-card__title">Marcador</h2>{' '}
+            <div className="side-card__badges">
+              <span className="scoreboard-meta">{modalityLabel}</span>
+              {modeLabel && (
+                <>
+                  {' '}
+                  <span className="scoreboard-meta">{modeLabel}</span>
+                </>
+              )}
             </div>
-          )}
-          <div className="action-buttons">
-            {activeCombination && (
-              <button
-                type="button"
-                className="action-button action-button--capture"
-                onClick={handleCapture}
-              >
-                Levantar (15)
-              </button>
-            )}
-            <button
-              type="button"
-              className="action-button action-button--discard"
-              onClick={handleDiscard}
-            >
-              Tirar a la mesa
-            </button>
           </div>
-        </div>
-      )}
+          <ul className="scoreboard-list">
+            {game.players.map((player) => {
+              const escobasLabel = `${player.escobas} ${player.escobas === 1 ? 'escoba' : 'escobas'}`;
+              const cardsLabel = `${player.captured.length} ${player.captured.length === 1 ? 'carta' : 'cartas'}`;
+              return (
+                <li key={player.id} className="scoreboard-item">
+                  <div className="scoreboard-item__main">
+                    <span className="scoreboard-item__name">{player.name}</span>
+                    {player.teamId !== undefined && (
+                      <>
+                        {' '}
+                        <span
+                          className={`team-badge ${
+                            player.teamId === localPlayer?.teamId
+                              ? 'team-badge--partner'
+                              : 'team-badge--rival'
+                          }`}
+                        >
+                          {getTeamName(player.teamId)}
+                        </span>
+                      </>
+                    )}
+                  </div>{' '}
+                  <div className="scoreboard-item__stats">
+                    <span className="scoreboard-item__score">{`${player.score} pts`}</span>{' '}
+                    <span>{escobasLabel}</span>{' '}
+                    <span>{cardsLabel}</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
 
-      <section
-        className="table-zone table-zone--player"
-        role="region"
-        aria-label="Tu mano"
-      >
-        <div className="player-zone-header">
-          <span className="zone-label">Tu mano</span>
-          {localTeamLabel && (
-            <span className="team-badge team-badge--partner">{localTeamLabel}</span>
+        <section
+          className="side-card side-card--history"
+          role="region"
+          aria-label="Historial de jugadas"
+        >
+          <div className="side-card__header">
+            <h2 className="side-card__title">Historial de jugadas</h2>
+          </div>
+          {history.length === 0 ? (
+            <p className="history-empty">Sin jugadas en esta ronda.</p>
+          ) : (
+            <ol className="history-list">
+              {history.map((entry) => (
+                <li key={entry.key} className="history-item">
+                  <span className="history-item__player">{entry.playerName}</span>{' '}
+                  <span className="history-item__action">{entry.verb}</span>{' '}
+                  <span className="history-item__cards">{entry.summaryCards}</span>
+                  {entry.madeEscoba && (
+                    <>
+                      {' '}
+                      <span className="history-escoba-badge">Escoba</span>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ol>
           )}
-        </div>
-        <div className="card-row card-row--player">
-          {localHand.map((card) => (
-            <SpanishCard
-              key={card.id}
-              card={card}
-              selected={selectedCard?.id === card.id}
-              disabled={!isPlaying || (onPlayAction ? !isLocalTurn : false)}
-              showFigureValues={showFigureValues}
-              onClick={onPlayAction ? () => handleSelectCard(card.id) : undefined}
-            />
-          ))}
-        </div>
-      </section>
+        </section>
+      </aside>
       <RulesModal open={rulesOpen} onClose={() => setRulesOpen(false)} />
     </div>
   );

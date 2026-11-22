@@ -1,9 +1,15 @@
-import type { GameState } from '../shared/types';
+import type { BotDifficulty, GameState } from '../shared/types';
 import { GameTable } from './components/GameTable';
 import { HomeScreen } from './components/HomeScreen';
 import { RoundSummaryModal } from './components/RoundSummaryModal';
 import { useLocalGame } from './hooks/useLocalGame';
 import { useOnlineGame } from './hooks/useOnlineGame';
+
+const DIFFICULTY_LABELS: Record<BotDifficulty, string> = {
+  facil: 'Fácil',
+  medio: 'Media',
+  dificil: 'Difícil',
+};
 
 export interface AppProps {
   initialGame?: GameState | null;
@@ -46,6 +52,7 @@ export default function App({ initialGame = null }: AppProps = {}) {
         <GameTable
           game={game}
           localPlayerId={game.players[0].id}
+          modeLabel={`IA · ${DIFFICULTY_LABELS[difficulty]}`}
           onPlayAction={playAction}
           onExit={exitGame}
         />
@@ -79,6 +86,7 @@ export default function App({ initialGame = null }: AppProps = {}) {
         <GameTable
           game={gameView}
           localPlayerId={onlineSnapshot.selfPlayerId}
+          modeLabel={`Online · Sala ${onlineSnapshot.code}`}
           onPlayAction={playOnlineAction}
           onExit={leaveRoom}
         />
