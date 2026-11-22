@@ -79,4 +79,27 @@ describe('shared/engine — createGame', () => {
     const duplicatedDeck = [...validDeck.slice(0, 39), validDeck[0]];
     expect(() => createGame({ players: validPlayers, deck: duplicatedDeck })).toThrow();
   });
+
+  it('detecta Escoba de mano de 15 asignando las 4 cartas de la mesa al repartidor', () => {
+    const baseDeck = createDeck();
+    const tableIds = ['oros-1', 'oros-2', 'oros-5', 'oros-7'];
+    const tableCards = tableIds.map((id) => baseDeck.find((c) => c.id === id)!);
+    const otherCards = baseDeck.filter((c) => !tableIds.includes(c.id));
+    const deck = [...otherCards.slice(0, 6), ...tableCards, ...otherCards.slice(6)];
+
+    const state = createGame({
+      players: [
+        { id: 'p1', name: 'Tú' },
+        { id: 'p2', name: 'Bot', isBot: true },
+      ],
+      dealerIndex: 1,
+      deck,
+    });
+
+    expect(state.escobaDeMano).toBe(1);
+    expect(state.table).toEqual([]);
+    expect(state.lastCapturerId).toBe('p2');
+    expect(state.players[1].escobas).toBe(1);
+    expect(state.players[1].captured).toEqual(tableCards);
+  });
 });
