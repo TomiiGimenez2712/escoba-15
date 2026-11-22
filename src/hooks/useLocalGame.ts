@@ -28,19 +28,41 @@ export interface UseLocalGameOptions {
 const DEFAULT_BOT_DELAY_MS = 450;
 const DEFAULT_BOT_PREVIEW_MS = 850;
 
-/** Construye la configuración de asientos con el jugador humano en el índice 0. */
+export const OPPONENT_PERSON_NAMES = [
+  'Mateo',
+  'Sofía',
+  'Lucía',
+  'Valentín',
+  'Camila',
+  'Tomás',
+  'Martina',
+  'Julián',
+  'Joaquín',
+  'Mora',
+  'Bautista',
+  'Catalina',
+  'Franco',
+  'Abril',
+] as const;
+
+function pickRandomOpponentNames(count: number): string[] {
+  const pool = [...OPPONENT_PERSON_NAMES];
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, count);
+}
+
+/** Construye la configuración de asientos con el jugador humano en el índice 0 y nombres reales para los bots. */
 function buildPlayers(playerCount: PlayerCount): PlayerConfig[] {
   const players: PlayerConfig[] = [{ id: 'player-1', name: 'Tú', isBot: false }];
-
-  if (playerCount === 2) {
-    players.push({ id: 'bot-1', name: 'Bot', isBot: true });
-    return players;
-  }
+  const opponentNames = pickRandomOpponentNames(playerCount - 1);
 
   for (let index = 1; index < playerCount; index += 1) {
     players.push({
       id: `bot-${index}`,
-      name: `Bot ${index}`,
+      name: opponentNames[index - 1] ?? `Jugador ${index + 1}`,
       isBot: true,
     });
   }

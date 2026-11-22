@@ -3,7 +3,6 @@ import { GameTable } from './components/GameTable';
 import { HomeScreen } from './components/HomeScreen';
 import { RoundSummaryModal } from './components/RoundSummaryModal';
 import { useLocalGame } from './hooks/useLocalGame';
-import { useOnlineGame } from './hooks/useOnlineGame';
 
 const DIFFICULTY_LABELS: Record<BotDifficulty, string> = {
   facil: 'Fácil',
@@ -32,18 +31,6 @@ export default function App({ initialGame = null }: AppProps = {}) {
     exitGame,
   } = useLocalGame({ initialGame });
 
-  const {
-    snapshot: onlineSnapshot,
-    error: onlineError,
-    loading: onlineLoading,
-    connectAndCreate,
-    connectAndJoin,
-    playOnlineAction,
-    requestNextRound,
-    requestRematch,
-    leaveRoom,
-  } = useOnlineGame();
-
   if (game) {
     const showRoundModal =
       (game.phase === 'round_end' || game.phase === 'game_over') && Boolean(game.roundSummary);
@@ -53,7 +40,7 @@ export default function App({ initialGame = null }: AppProps = {}) {
         <GameTable
           game={game}
           localPlayerId={game.players[0].id}
-          modeLabel={`IA · ${DIFFICULTY_LABELS[difficulty]}`}
+          modeLabel={DIFFICULTY_LABELS[difficulty]}
           botPreview={botPreview}
           onPlayAction={playAction}
           onExit={exitGame}
@@ -69,40 +56,6 @@ export default function App({ initialGame = null }: AppProps = {}) {
     );
   }
 
-  if (onlineSnapshot?.status === 'playing' && onlineSnapshot.gameView) {
-    const gameView = onlineSnapshot.gameView;
-    const hasDisconnectedPlayer = onlineSnapshot.players.some(
-      (player) => player.id !== onlineSnapshot.selfPlayerId && !player.connected,
-    );
-    const showRoundModal =
-      (gameView.phase === 'round_end' || gameView.phase === 'game_over') &&
-      Boolean(gameView.roundSummary);
-
-    return (
-      <main className="app-shell">
-        {hasDisconnectedPlayer && (
-          <div className="disconnect-banner" role="status">
-            Tu amigo se desconectó. Esperando reconexión...
-          </div>
-        )}
-        <GameTable
-          game={gameView}
-          localPlayerId={onlineSnapshot.selfPlayerId}
-          modeLabel={`Online · Sala ${onlineSnapshot.code}`}
-          onPlayAction={playOnlineAction}
-          onExit={leaveRoom}
-        />
-        {showRoundModal && (
-          <RoundSummaryModal
-            game={gameView}
-            onNextRound={requestNextRound}
-            onRematch={requestRematch}
-          />
-        )}
-      </main>
-    );
-  }
-
   return (
     <HomeScreen
       difficulty={difficulty}
@@ -112,12 +65,6 @@ export default function App({ initialGame = null }: AppProps = {}) {
       onPlayerCountChange={setPlayerCount}
       onTargetScoreChange={setTargetScore}
       onStart={startGame}
-      onlineSnapshot={onlineSnapshot}
-      onlineError={onlineError}
-      onlineLoading={onlineLoading}
-      onCreateOnlineRoom={connectAndCreate}
-      onJoinOnlineRoom={connectAndJoin}
-      onLeaveOnlineRoom={leaveRoom}
     />
   );
 }
