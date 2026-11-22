@@ -1,7 +1,8 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import { createGame } from '../shared/engine';
+import { createGame, playCard, startNextRound } from '../shared/engine';
 import type {
   GameState,
+  PlayAction,
   PlayerGameView,
   PublicPlayer,
   RoomPlayerInfo,
@@ -27,9 +28,34 @@ export interface JoinRoomInput {
   playerName: string;
 }
 
+export interface PlayMoveInput {
+  code: string;
+  playerId: string;
+  action: PlayAction;
+}
+
+export interface RoomPlayerActionInput {
+  code: string;
+  playerId: string;
+}
+
+export interface ReconnectRoomInput {
+  code: string;
+  sessionToken: string;
+}
+
 export interface RoomActionResult {
   snapshot: RoomSnapshot;
   sessionToken: string;
+}
+
+export interface SocketBinding {
+  code: string;
+  playerId: string;
+}
+
+export interface DetachSocketResult extends SocketBinding {
+  becameDisconnected: boolean;
 }
 
 export interface SocketRecipient {
@@ -48,6 +74,7 @@ interface InternalRoom {
   targetScore: TargetScore;
   players: InternalRoomPlayer[];
   gameState: GameState | null;
+  emptySince: number | null;
 }
 
 function isPlayerConnected(playerId: string, connectionMap?: ConnectionMap): boolean {
@@ -115,10 +142,10 @@ export function buildPlayerGameView(
   };
 }
 
-/** Administra salas online en memoria, sus jugadores y el ciclo inicial de partida. */
+/** Administra salas online en memoria, sus jugadores y el ciclo completo de partida. */
 export class RoomManager {
   private readonly rooms = new Map<string, InternalRoom>();
-  private readonly socketBindings = new Map<string, { code: string; playerId: string }>();
+  private readonly socketBindings = new Map<string, SocketBinding>();
 
   /** Crea una sala en espera con código único y registra al jugador creador. */
   createRoom(input: CreateRoomInput): RoomActionResult {
@@ -148,6 +175,7 @@ export class RoomManager {
       targetScore,
       players: [creator],
       gameState: null,
+      emptySince: null,
     };
 
     this.rooms.set(code, room);
@@ -179,16 +207,10 @@ export class RoomManager {
     };
 
     room.players.push(newPlayer);
+    room.emptySince = null;
 
     if (room.players.length === room.maxPlayers) {
-      room.gameState = createGame({
-        players: room.players.map((player) => ({
-          id: player.id,
-          name: player.name,
-        })),
-        targetScore: room.targetScore,
-        dealerIndex: room.players.length - 1,
-      });
+      room.gameState = this.createInitialRoomGame(room);
       room.status = 'playing';
     }
 
@@ -200,15 +222,70 @@ export class RoomManager {
 
   /** Obtiene el snapshot actualizado de la sala personalizado para un jugador. */
   getRoomSnapshotForPlayer(code: string, playerId: string): RoomSnapshot {
-    const normalizedCode = normalizeRoomCode(code);
-    const room = this.getRoomOrThrow(normalizedCode);
+    const { room } = this.getRoomAndPlayer(code, playerId);
+    return this.buildSnapshot(room, playerId);
+  }
 
-    const playerExists = room.players.some((player) => player.id === playerId);
-    if (!playerExists) {
-      throw new Error(`El jugador no pertenece a la sala ${normalizedCode}.`);
+  /** Ejecuta una jugada en una partida online activa validando sala, jugador, turno y reglas. */
+  playMove(input: PlayMoveInput): RoomSnapshot {
+    const { room, gameState } = this.getPlayingRoomAndPlayer(input.code, input.playerId);
+    if (!input.action || typeof input.action !== 'object') {
+      throw new Error('La jugada es obligatoria.');
     }
 
-    return this.buildSnapshot(room, playerId);
+    room.gameState = playCard(gameState, input.playerId, input.action);
+    return this.buildSnapshot(room, input.playerId);
+  }
+
+  /** Avanza a la siguiente ronda cuando la ronda actual alcanzó 'round_end'. */
+  nextRound(input: RoomPlayerActionInput): RoomSnapshot {
+    const { room, gameState } = this.getPlayingRoomAndPlayer(input.code, input.playerId);
+    if (gameState.phase !== 'round_end') {
+      throw new Error('Solo se puede avanzar a la siguiente ronda cuando finaliza la ronda actual.');
+    }
+
+    room.gameState = startNextRound(gameState);
+    return this.buildSnapshot(room, input.playerId);
+  }
+
+  /** Reinicia la partida dentro de la misma sala al finalizar ('game_over'), conservando jugadores y tokens. */
+  rematch(input: RoomPlayerActionInput): RoomSnapshot {
+    const { room } = this.getRoomAndPlayer(input.code, input.playerId);
+    if (room.gameState?.phase !== 'game_over') {
+      throw new Error('Solo se puede pedir revancha cuando la partida ha terminado.');
+    }
+
+    room.gameState = this.createInitialRoomGame(room);
+    room.status = 'playing';
+    return this.buildSnapshot(room, input.playerId);
+  }
+
+  /** Restaura la sesión de un jugador mediante su código de sala y sessionToken. */
+  reconnect(input: ReconnectRoomInput): RoomSnapshot {
+    const normalizedCode = normalizeRoomCode(input.code);
+    const token = typeof input.sessionToken === 'string' ? input.sessionToken.trim() : '';
+    if (!token) {
+      throw new Error('El token de sesión es obligatorio.');
+    }
+
+    const room = this.getRoomOrThrow(normalizedCode);
+    const player = room.players.find((item) => item.sessionToken === token);
+    if (!player) {
+      throw new Error('La sesión no es válida para esta sala.');
+    }
+
+    player.connected = true;
+    room.emptySince = null;
+    return this.buildSnapshot(room, player.id, player.sessionToken);
+  }
+
+  /** Devuelve el código de sala y jugador asociados a un socket, o null si no está registrado. */
+  getSocketBinding(socketId: string): SocketBinding | null {
+    const binding = this.socketBindings.get(socketId);
+    if (!binding) {
+      return null;
+    }
+    return { code: binding.code, playerId: binding.playerId };
   }
 
   /** Asocia un socket conectado a un jugador dentro de una sala y marca su conexión como activa. */
@@ -217,29 +294,25 @@ export class RoomManager {
       throw new Error('El identificador del socket es obligatorio.');
     }
 
-    const normalizedCode = normalizeRoomCode(code);
-    const room = this.getRoomOrThrow(normalizedCode);
-    const player = room.players.find((item) => item.id === playerId);
-    if (!player) {
-      throw new Error(`El jugador no pertenece a la sala ${normalizedCode}.`);
-    }
+    const { room, player } = this.getRoomAndPlayer(code, playerId);
 
     if (this.socketBindings.has(socketId)) {
       this.detachSocket(socketId);
     }
 
     player.connected = true;
+    room.emptySince = null;
     this.socketBindings.set(socketId, {
-      code: normalizedCode,
+      code: room.code,
       playerId,
     });
   }
 
-  /** Desasocia un socket y marca al jugador como desconectado si era su último socket activo. */
-  detachSocket(socketId: string): void {
+  /** Desasocia un socket, actualiza el estado de conexión del jugador y registra vaciamiento si corresponde. */
+  detachSocket(socketId: string): DetachSocketResult | null {
     const binding = this.socketBindings.get(socketId);
     if (!binding) {
-      return;
+      return null;
     }
 
     this.socketBindings.delete(socketId);
@@ -247,13 +320,50 @@ export class RoomManager {
     const hasOtherSocket = Array.from(this.socketBindings.values()).some(
       (entry) => entry.code === binding.code && entry.playerId === binding.playerId
     );
+
+    let becameDisconnected = false;
+    const room = this.rooms.get(binding.code);
+
     if (!hasOtherSocket) {
-      const room = this.rooms.get(binding.code);
       const player = room?.players.find((item) => item.id === binding.playerId);
       if (player) {
         player.connected = false;
       }
+      becameDisconnected = true;
     }
+
+    if (room && room.players.every((player) => !player.connected)) {
+      room.emptySince = Date.now();
+    }
+
+    return {
+      code: binding.code,
+      playerId: binding.playerId,
+      becameDisconnected,
+    };
+  }
+
+  /** Elimina las salas totalmente desconectadas cuyo tiempo de vaciamiento superó el TTL indicado. */
+  cleanupExpiredRooms(ttlMs: number, now: number = Date.now()): string[] {
+    const expiredCodes: string[] = [];
+
+    for (const [code, room] of this.rooms.entries()) {
+      const allDisconnected = room.players.every((player) => !player.connected);
+      if (allDisconnected && room.emptySince !== null && now - room.emptySince >= ttlMs) {
+        expiredCodes.push(code);
+      }
+    }
+
+    for (const code of expiredCodes) {
+      this.rooms.delete(code);
+      for (const [socketId, binding] of this.socketBindings.entries()) {
+        if (binding.code === code) {
+          this.socketBindings.delete(socketId);
+        }
+      }
+    }
+
+    return expiredCodes;
   }
 
   /** Devuelve los sockets actualmente asociados a una sala junto con su playerId. */
@@ -268,6 +378,17 @@ export class RoomManager {
       }
     }
     return recipients;
+  }
+
+  private createInitialRoomGame(room: InternalRoom): GameState {
+    return createGame({
+      players: room.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+      })),
+      targetScore: room.targetScore,
+      dealerIndex: room.players.length - 1,
+    });
   }
 
   private generateUniqueCode(): string {
@@ -286,6 +407,30 @@ export class RoomManager {
       throw new Error(`No existe ninguna sala con el código ${code}.`);
     }
     return room;
+  }
+
+  private getRoomAndPlayer(
+    code: string,
+    playerId: string
+  ): { room: InternalRoom; player: InternalRoomPlayer } {
+    const normalizedCode = normalizeRoomCode(code);
+    const room = this.getRoomOrThrow(normalizedCode);
+    const player = room.players.find((item) => item.id === playerId);
+    if (!player) {
+      throw new Error(`El jugador no pertenece a la sala ${normalizedCode}.`);
+    }
+    return { room, player };
+  }
+
+  private getPlayingRoomAndPlayer(
+    code: string,
+    playerId: string
+  ): { room: InternalRoom; gameState: GameState } {
+    const { room } = this.getRoomAndPlayer(code, playerId);
+    if (room.status !== 'playing' || !room.gameState) {
+      throw new Error(`La sala ${room.code} no tiene una partida en curso.`);
+    }
+    return { room, gameState: room.gameState };
   }
 
   private buildSnapshot(
