@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react';
 import { findCaptureCombinations } from '../../shared/engine';
-import type { Card, GameState, LastAction, PlayAction } from '../../shared/types';
+import type {
+  Card,
+  GameState,
+  LastAction,
+  PlayAction,
+  PlayerGameView,
+} from '../../shared/types';
 import { SpanishCard } from './SpanishCard';
 
 export interface GameTableProps {
-  game: GameState;
+  game: GameState | PlayerGameView;
   localPlayerId?: string;
   onPlayAction?: (action: PlayAction) => void;
 }
@@ -45,7 +51,9 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
   const resolvedLocalPlayerId = localPlayerId ?? game.players[0]?.id;
   const localPlayer =
     game.players.find((player) => player.id === resolvedLocalPlayerId) ?? game.players[0];
+  const localHand = localPlayer?.hand ?? [];
   const opponents = game.players.filter((player) => player.id !== localPlayer?.id);
+  const deckCount = 'deck' in game ? game.deck.length : game.deckCount;
   const localTeamLabel =
     localPlayer?.teamId !== undefined ? getTeamName(localPlayer.teamId) : null;
   const currentPlayer = game.players[game.currentPlayerIndex];
@@ -61,7 +69,7 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedComboIndex, setSelectedComboIndex] = useState(0);
 
-  const handSignature = localPlayer?.hand.map((card) => card.id).join(',') ?? '';
+  const handSignature = localHand.map((card) => card.id).join(',');
 
   useEffect(() => {
     setSelectedCardId(null);
@@ -69,7 +77,7 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
   }, [handSignature, isLocalTurn]);
 
   const selectedCard = isLocalTurn
-    ? (localPlayer?.hand.find((card) => card.id === selectedCardId) ?? null)
+    ? (localHand.find((card) => card.id === selectedCardId) ?? null)
     : null;
   const combinations = selectedCard ? findCaptureCombinations(selectedCard, game.table) : [];
   const activeComboIndex = selectedComboIndex < combinations.length ? selectedComboIndex : 0;
@@ -124,6 +132,11 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
         >
           {opponents.map((opponent) => {
             const teamMeta = getOpponentTeamMeta(opponent.teamId, localPlayer?.teamId);
+            const hiddenCount = opponent.hand
+              ? opponent.hand.length
+              : 'handCount' in opponent
+                ? opponent.handCount
+                : 0;
 
             return (
               <div
@@ -143,8 +156,8 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
                   )}
                 </div>
                 <div className="opponent-hand">
-                  {opponent.hand.map((card) => (
-                    <SpanishCard key={card.id} faceDown compact />
+                  {Array.from({ length: hiddenCount }, (_, index) => (
+                    <SpanishCard key={`${opponent.id}-back-${index}`} faceDown compact />
                   ))}
                 </div>
               </div>
@@ -175,12 +188,12 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
         >
           <span className="zone-label">Mazo</span>
           <div className="deck-stack">
-            {game.deck.length > 0 ? (
+            {deckCount > 0 ? (
               <SpanishCard faceDown compact />
             ) : (
               <div className="deck-empty" aria-hidden="true" />
             )}
-            <span className="deck-count">{game.deck.length}</span>
+            <span className="deck-count">{deckCount}</span>
           </div>
         </section>
 
@@ -257,7 +270,7 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
           )}
         </div>
         <div className="card-row card-row--player">
-          {localPlayer?.hand.map((card) => (
+          {localHand.map((card) => (
             <SpanishCard
               key={card.id}
               card={card}

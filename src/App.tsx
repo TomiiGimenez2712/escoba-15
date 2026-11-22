@@ -55,6 +55,17 @@ export default function App({ initialGame = null }: AppProps = {}) {
     );
   }
 
+  if (onlineSnapshot?.status === 'playing' && onlineSnapshot.gameView) {
+    return (
+      <main className="app-shell">
+        <GameTable
+          game={onlineSnapshot.gameView}
+          localPlayerId={onlineSnapshot.selfPlayerId}
+        />
+      </main>
+    );
+  }
+
   return (
     <HomeScreen
       difficulty={difficulty}

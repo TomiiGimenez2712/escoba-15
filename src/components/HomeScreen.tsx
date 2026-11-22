@@ -42,6 +42,14 @@ const TARGET_SCORE_OPTIONS: RadioOption<TargetScore>[] = [
 
 const noop = () => {};
 
+function getInitialRoomCode(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  const rawCode = new URLSearchParams(window.location.search).get('sala');
+  return rawCode ? rawCode.trim().toUpperCase() : '';
+}
+
 /** Pantalla inicial con selector de modalidad Contra IA u Online con un amigo. */
 export function HomeScreen({
   difficulty,
@@ -59,7 +67,8 @@ export function HomeScreen({
   onLeaveOnlineRoom,
 }: HomeScreenProps) {
   const baseId = useId();
-  const [mode, setMode] = useState<HomeMode>('ai');
+  const [initialCode] = useState<string>(() => getInitialRoomCode());
+  const [mode, setMode] = useState<HomeMode>(() => (initialCode ? 'online' : 'ai'));
 
   const aiTabId = `${baseId}-tab-ai`;
   const onlineTabId = `${baseId}-tab-online`;
@@ -148,6 +157,7 @@ export function HomeScreen({
               snapshot={onlineSnapshot}
               error={onlineError}
               loading={onlineLoading}
+              initialCode={initialCode}
               onCreateRoom={onCreateOnlineRoom}
               onJoinRoom={onJoinOnlineRoom}
               onLeaveRoom={onLeaveOnlineRoom}
