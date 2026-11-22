@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createDeck } from './deck';
-import { createGame } from './engine';
+import { createGame, findCaptureCombinations } from './engine';
 
 describe('shared/engine — createGame', () => {
   it('inicia una partida de 2 jugadores repartiendo 3 cartas c/u, 4 en mesa y 30 en el mazo', () => {
@@ -136,5 +136,37 @@ describe('shared/engine — createGame', () => {
     expect(invalidState.players[0].captured).toEqual([]);
     expect(invalidState.players[0].escobas).toBe(0);
     expect(invalidState.lastCapturerId).toBeNull();
+  });
+});
+
+describe('shared/engine — findCaptureCombinations', () => {
+  it('detecta 0, 1 y múltiples combinaciones que suman 15 sin mutar las entradas', () => {
+    const deck = createDeck();
+    const card = (id: string) => deck.find((c) => c.id === id)!;
+
+    const handCard = card('oros-5'); // value: 5
+    const doceCopas = card('copas-12'); // value: 10
+    const cuatroOros = card('oros-4'); // value: 4
+    const seisCopas = card('copas-6'); // value: 6
+    const unoEspadas = card('espadas-1'); // value: 1
+
+    expect(findCaptureCombinations(handCard, [])).toEqual([]);
+    expect(findCaptureCombinations(handCard, [cuatroOros, unoEspadas])).toEqual([]);
+
+    expect(findCaptureCombinations(handCard, [doceCopas, unoEspadas])).toEqual([[doceCopas]]);
+    expect(findCaptureCombinations(handCard, [cuatroOros, seisCopas, unoEspadas])).toEqual([
+      [cuatroOros, seisCopas],
+    ]);
+
+    const table = [doceCopas, cuatroOros, seisCopas];
+    const tableSnapshot = table.map((c) => ({ ...c }));
+    const handSnapshot = { ...handCard };
+
+    expect(findCaptureCombinations(handCard, table)).toEqual([
+      [doceCopas],
+      [cuatroOros, seisCopas],
+    ]);
+    expect(table).toEqual(tableSnapshot);
+    expect(handCard).toEqual(handSnapshot);
   });
 });
