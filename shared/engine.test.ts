@@ -267,4 +267,71 @@ describe('shared/engine — playCard', () => {
       madeEscoba: true,
     });
   });
+
+  it('lanza Error descriptivo sin mutar el estado ante jugadas inválidas', () => {
+    const baseDeck = createDeck();
+    const card = (id: string) => baseDeck.find((c) => c.id === id)!;
+    const fixedIds = [
+      'oros-5',
+      'espadas-4',
+      'oros-1',
+      'bastos-12',
+      'espadas-12',
+      'copas-2',
+      'copas-12',
+      'bastos-5',
+      'oros-4',
+      'espadas-1',
+    ];
+    const deck = [
+      ...fixedIds.map(card),
+      ...baseDeck.filter((c) => !fixedIds.includes(c.id)),
+    ];
+
+    const state = createGame({
+      players: [
+        { id: 'p1', name: 'Tú' },
+        { id: 'p2', name: 'Bot', isBot: true },
+      ],
+      dealerIndex: 1,
+      deck,
+    });
+    const snapshot = structuredClone(state);
+
+    // No es el turno del jugador (turno actual: p1)
+    expect(() => playCard(state, 'p2', { type: 'discard', cardId: 'bastos-12' })).toThrow(/\S/);
+    expect(() => playCard(state, 'p2', { type: 'discard', cardId: 'oros-5' })).toThrow(/\S/);
+    // La carta jugada no está en la mano del jugador actual
+    expect(() => playCard(state, 'p1', { type: 'discard', cardId: 'bastos-12' })).toThrow(/\S/);
+    // Captura con tableCardIds vacío
+    expect(() =>
+      playCard(state, 'p1', { type: 'capture', cardId: 'oros-5', tableCardIds: [] }),
+    ).toThrow(/\S/);
+    // Captura con tableCardIds duplicados (aun cuando sumarían 15)
+    expect(() =>
+      playCard(state, 'p1', {
+        type: 'capture',
+        cardId: 'oros-5',
+        tableCardIds: ['bastos-5', 'bastos-5'],
+      }),
+    ).toThrow(/\S/);
+    // Captura con carta ausente en la mesa
+    expect(() =>
+      playCard(state, 'p1', {
+        type: 'capture',
+        cardId: 'oros-5',
+        tableCardIds: ['espadas-12'],
+      }),
+    ).toThrow(/\S/);
+    // Captura cuya suma total difiere de 15 (5 + 4 = 9)
+    expect(() =>
+      playCard(state, 'p1', {
+        type: 'capture',
+        cardId: 'oros-5',
+        tableCardIds: ['oros-4'],
+      }),
+    ).toThrow(/\S/);
+
+    expect(state).toEqual(snapshot);
+  });
 });
