@@ -876,3 +876,263 @@ describe('App — lobby online y salas con código (H5)', () => {
     expect(within(rivalZone).queryAllByLabelText(/de (oros|copas|espadas|bastos)/i)).toHaveLength(0);
   });
 });
+
+describe('App — partida online sincronizada, reconexión y revancha (H6)', () => {
+  afterEach(() => {
+    sessionStorage.clear();
+    resetFakeSocket();
+    vi.restoreAllMocks();
+  });
+
+  it('persiste sesión, sincroniza game:play, muestra banner de desconexión, maneja RoundSummaryModal y sale al menú', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole('tab', { name: /online con un amigo/i }));
+    await user.type(screen.getByLabelText(/nombre/i), 'Ana');
+    await user.click(screen.getByRole('button', { name: /crear sala/i }));
+
+    const createGameView = (
+      overrides: Partial<PlayerGameView> = {},
+      rivalConnected = true,
+    ): PlayerGameView => ({
+      players: [
+        {
+          id: 'p1',
+          name: 'Ana',
+          isBot: false,
+          hand: pickCards(['oros-1', 'oros-2', 'oros-3']),
+          handCount: 3,
+          captured: [],
+          escobas: 0,
+          score: 0,
+          connected: true,
+        },
+        {
+          id: 'p2',
+          name: 'Luis',
+          isBot: false,
+          handCount: 3,
+          captured: [],
+          escobas: 0,
+          score: 0,
+          connected: rivalConnected,
+        },
+      ],
+      table: pickCards(['copas-4', 'espadas-5', 'bastos-6', 'oros-7']),
+      deckCount: 30,
+      localPlayerId: 'p1',
+      dealerIndex: 1,
+      currentPlayerIndex: 0,
+      lastCapturerId: null,
+      lastAction: null,
+      targetScore: 15,
+      round: 1,
+      escobaDeMano: 0,
+      phase: 'playing',
+      roundSummary: null,
+      winnerId: null,
+      winnerTeamId: null,
+      isTiebreaker: false,
+      ...overrides,
+    });
+
+    const createSnapshot = (
+      gameView: PlayerGameView,
+      options: { rivalConnected?: boolean; sessionToken?: string } = {},
+    ): RoomSnapshot => {
+      const rivalConnected = options.rivalConnected ?? true;
+      return {
+        code: 'K7M9P',
+        status: 'playing',
+        maxPlayers: 2,
+        targetScore: 15,
+        players: [
+          { id: 'p1', name: 'Ana', connected: true },
+          { id: 'p2', name: 'Luis', connected: rivalConnected },
+        ],
+        selfPlayerId: 'p1',
+        ...(options.sessionToken ? { sessionToken: options.sessionToken } : {}),
+        gameView,
+      };
+    };
+
+    // 1. Recibir 'room:state' en 'playing' con sessionToken y verificar sessionStorage
+    act(() => {
+      triggerServerEvent(
+        'room:state',
+        createSnapshot(createGameView(), { sessionToken: 'token-1' }),
+      );
+    });
+
+    expect(JSON.parse(sessionStorage.getItem('escoba15_online_session') ?? 'null')).toEqual({
+      code: 'K7M9P',
+      sessionToken: 'token-1',
+      playerName: 'Ana',
+    });
+
+    // 2. En turno local, seleccionar carta, confirmar jugada -> emite 'game:play', luego turno rival
+    const playerHand = screen.getByRole('region', { name: /tu mano/i });
+    await user.click(within(playerHand).getByRole('button', { name: '1 de oros' }));
+    await user.click(screen.getByRole('button', { name: /tirar a la mesa/i }));
+
+    const playCall = fakeSocket.emit.mock.calls.find(([event]) => event === 'game:play');
+    expect(playCall).toBeDefined();
+    expect(playCall?.[1]).toEqual({
+      action: { type: 'discard', cardId: 'oros-1' },
+    });
+
+    act(() => {
+      triggerServerEvent(
+        'room:state',
+        createSnapshot(
+          createGameView({
+            currentPlayerIndex: 1,
+            players: [
+              {
+                id: 'p1',
+                name: 'Ana',
+                isBot: false,
+                hand: pickCards(['oros-2', 'oros-3']),
+                handCount: 2,
+                captured: [],
+                escobas: 0,
+                score: 0,
+                connected: true,
+              },
+              {
+                id: 'p2',
+                name: 'Luis',
+                isBot: false,
+                handCount: 3,
+                captured: [],
+                escobas: 0,
+                score: 0,
+                connected: true,
+              },
+            ],
+          }),
+        ),
+      );
+    });
+
+    for (const button of within(playerHand).getAllByRole('button')) {
+      expect(button).toBeDisabled();
+    }
+    const rivalZone = screen.getByRole('region', { name: /rival/i });
+    expect(within(rivalZone).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(3);
+    expect(within(rivalZone).queryAllByLabelText(/de (oros|copas|espadas|bastos)/i)).toHaveLength(0);
+
+    // 3. Banner de desconexión del rival y desaparición al reconectar
+    act(() => {
+      triggerServerEvent(
+        'room:state',
+        createSnapshot(createGameView({ currentPlayerIndex: 1 }, false), {
+          rivalConnected: false,
+        }),
+      );
+    });
+
+    expect(
+      screen.getByText(/tu amigo se desconectó\. esperando reconexión\.\.\./i),
+    ).toBeInTheDocument();
+
+    act(() => {
+      triggerServerEvent(
+        'room:state',
+        createSnapshot(createGameView({ currentPlayerIndex: 1 }, true), {
+          rivalConnected: true,
+        }),
+      );
+    });
+
+    expect(
+      screen.queryByText(/tu amigo se desconectó\. esperando reconexión\.\.\./i),
+    ).not.toBeInTheDocument();
+
+    // 4. RoundSummaryModal en round_end y game_over emitiendo game:nextRound y game:rematch
+    const makeSummary = (totalAna: number, totalLuis: number, winnerId: string | null) => ({
+      round: 1,
+      leftoverCards: [],
+      leftoverWinnerId: 'p1',
+      isTiebreaker: false,
+      winnerId,
+      winnerTeamId: null,
+      participants: [
+        {
+          participantId: 'p1',
+          label: 'Ana',
+          playerIds: ['p1'],
+          escobas: 1,
+          sieteDeOros: 1 as const,
+          sietes: 1 as const,
+          oros: 1 as const,
+          cartas: 1 as const,
+          roundTotal: 5,
+          totalScore: totalAna,
+          totalCardsCount: 24,
+          orosCount: 7,
+          sietesCount: 3,
+        },
+        {
+          participantId: 'p2',
+          label: 'Luis',
+          playerIds: ['p2'],
+          escobas: 0,
+          sieteDeOros: 0 as const,
+          sietes: 0 as const,
+          oros: 0 as const,
+          cartas: 0 as const,
+          roundTotal: 0,
+          totalScore: totalLuis,
+          totalCardsCount: 16,
+          orosCount: 3,
+          sietesCount: 1,
+        },
+      ],
+    });
+
+    act(() => {
+      triggerServerEvent(
+        'room:state',
+        createSnapshot(
+          createGameView({
+            phase: 'round_end',
+            roundSummary: makeSummary(5, 0, null),
+          }),
+        ),
+      );
+    });
+
+    const roundDialog = screen.getByRole('dialog');
+    await user.click(within(roundDialog).getByRole('button', { name: /siguiente ronda/i }));
+    expect(fakeSocket.emit.mock.calls.some(([event]) => event === 'game:nextRound')).toBe(true);
+
+    act(() => {
+      triggerServerEvent(
+        'room:state',
+        createSnapshot(
+          createGameView({
+            phase: 'game_over',
+            winnerId: 'p1',
+            roundSummary: makeSummary(15, 4, 'p1'),
+          }),
+        ),
+      );
+    });
+
+    const gameOverDialog = screen.getByRole('dialog');
+    await user.click(within(gameOverDialog).getByRole('button', { name: /jugar revancha/i }));
+    expect(fakeSocket.emit.mock.calls.some(([event]) => event === 'game:rematch')).toBe(true);
+
+    // 5. Salir de la sala: limpia sessionStorage, desconecta socket y vuelve a HomeScreen
+    await user.click(screen.getByRole('button', { name: /salir/i }));
+
+    expect(sessionStorage.getItem('escoba15_online_session')).toBeNull();
+    expect(fakeSocket.disconnect).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('heading', { name: /escoba del 15/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /online con un amigo/i })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /tu mano/i })).not.toBeInTheDocument();
+  });
+});
