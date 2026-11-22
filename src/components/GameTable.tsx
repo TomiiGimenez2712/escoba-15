@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { findCaptureCombinations } from '../../shared/engine';
 import type {
   Card,
@@ -7,6 +7,12 @@ import type {
   PlayAction,
   PlayerGameView,
 } from '../../shared/types';
+import {
+  playCaptureSound,
+  playDiscardSound,
+  playEscobaSound,
+  playVictorySound,
+} from '../utils/sound';
 import { RulesModal } from './RulesModal';
 import { SpanishCard } from './SpanishCard';
 
@@ -14,6 +20,15 @@ export interface GameTableProps {
   game: GameState | PlayerGameView;
   localPlayerId?: string;
   onPlayAction?: (action: PlayAction) => void;
+  onExit?: () => void;
+}
+
+function getLastActionKey(lastAction: LastAction | null): string | null {
+  if (!lastAction) {
+    return null;
+  }
+  const capturedIds = lastAction.capturedCards.map((card) => card.id).join(',');
+  return `${lastAction.playerId}|${lastAction.type}|${lastAction.playedCard.id}|${capturedIds}|${lastAction.madeEscoba ? '1' : '0'}`;
 }
 
 function formatCardLabel(card: Card): string {
@@ -48,7 +63,7 @@ function getOpponentTeamMeta(
   };
 }
 
-export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps) {
+export function GameTable({ game, localPlayerId, onPlayAction, onExit }: GameTableProps) {
   const resolvedLocalPlayerId = localPlayerId ?? game.players[0]?.id;
   const localPlayer =
     game.players.find((player) => player.id === resolvedLocalPlayerId) ?? game.players[0];
@@ -70,6 +85,16 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedComboIndex, setSelectedComboIndex] = useState(0);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [showFigureValues, setShowFigureValues] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  const soundEnabledRef = useRef(soundEnabled);
+  const lastActionKeyRef = useRef<string | null>(null);
+  const prevPhaseRef = useRef(game.phase);
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
 
   const handSignature = localHand.map((card) => card.id).join(',');
 
@@ -77,6 +102,37 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
     setSelectedCardId(null);
     setSelectedComboIndex(0);
   }, [handSignature, isLocalTurn]);
+
+  const lastActionKey = getLastActionKey(game.lastAction);
+
+  useEffect(() => {
+    if (!game.lastAction || !lastActionKey) {
+      lastActionKeyRef.current = null;
+      return;
+    }
+
+    if (lastActionKeyRef.current === lastActionKey) {
+      return;
+    }
+
+    lastActionKeyRef.current = lastActionKey;
+    const options = { muted: !soundEnabledRef.current };
+
+    if (game.lastAction.type === 'discard') {
+      playDiscardSound(options);
+    } else if (game.lastAction.madeEscoba) {
+      playEscobaSound(options);
+    } else {
+      playCaptureSound(options);
+    }
+  }, [lastActionKey, game.lastAction]);
+
+  useEffect(() => {
+    if (prevPhaseRef.current !== 'game_over' && game.phase === 'game_over') {
+      playVictorySound({ muted: !soundEnabledRef.current });
+    }
+    prevPhaseRef.current = game.phase;
+  }, [game.phase]);
 
   const selectedCard = isLocalTurn
     ? (localHand.find((card) => card.id === selectedCardId) ?? null)
@@ -127,11 +183,36 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
         <div className="table-topbar__actions">
           <button
             type="button"
+            className={`topbar-button ${showFigureValues ? 'topbar-button--active' : ''}`.trim()}
+            aria-pressed={showFigureValues}
+            onClick={() => setShowFigureValues((prev) => !prev)}
+          >
+            Valores
+          </button>
+          <button
+            type="button"
+            className={`topbar-button ${soundEnabled ? 'topbar-button--active' : ''}`.trim()}
+            aria-pressed={soundEnabled}
+            onClick={() => setSoundEnabled((prev) => !prev)}
+          >
+            Sonido
+          </button>
+          <button
+            type="button"
             className="topbar-button"
             onClick={() => setRulesOpen(true)}
           >
             Reglas
           </button>
+          {onExit && (
+            <button
+              type="button"
+              className="topbar-button topbar-button--exit"
+              onClick={onExit}
+            >
+              Salir
+            </button>
+          )}
         </div>
       </header>
       <section
@@ -227,6 +308,7 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
                 key={card.id}
                 card={card}
                 highlighted={highlightedCardIds.has(card.id)}
+                showFigureValues={showFigureValues}
               />
             ))}
           </div>
@@ -289,6 +371,7 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
               card={card}
               selected={selectedCard?.id === card.id}
               disabled={!isPlaying || (onPlayAction ? !isLocalTurn : false)}
+              showFigureValues={showFigureValues}
               onClick={onPlayAction ? () => handleSelectCard(card.id) : undefined}
             />
           ))}

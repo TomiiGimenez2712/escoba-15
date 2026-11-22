@@ -22,6 +22,7 @@ export default function App({ initialGame = null }: AppProps = {}) {
     playAction,
     nextRound,
     rematch,
+    exitGame,
   } = useLocalGame({ initialGame });
 
   const {
@@ -46,6 +47,7 @@ export default function App({ initialGame = null }: AppProps = {}) {
           game={game}
           localPlayerId={game.players[0].id}
           onPlayAction={playAction}
+          onExit={exitGame}
         />
         {showRoundModal && (
           <RoundSummaryModal
@@ -69,11 +71,6 @@ export default function App({ initialGame = null }: AppProps = {}) {
 
     return (
       <main className="app-shell">
-        <div className="online-topbar">
-          <button type="button" className="leave-button" onClick={leaveRoom}>
-            Salir
-          </button>
-        </div>
         {hasDisconnectedPlayer && (
           <div className="disconnect-banner" role="status">
             Tu amigo se desconectó. Esperando reconexión...
@@ -83,6 +80,7 @@ export default function App({ initialGame = null }: AppProps = {}) {
           game={gameView}
           localPlayerId={onlineSnapshot.selfPlayerId}
           onPlayAction={playOnlineAction}
+          onExit={leaveRoom}
         />
         {showRoundModal && (
           <RoundSummaryModal

@@ -95,6 +95,10 @@ export function useLocalGame({
     });
   };
 
+  const exitGame = () => {
+    setGame(null);
+  };
+
   useEffect(() => {
     if (!game || game.phase !== 'playing') {
       return undefined;
@@ -136,5 +140,6 @@ export function useLocalGame({
     playAction,
     nextRound,
     rematch,
+    exitGame,
   };
 }

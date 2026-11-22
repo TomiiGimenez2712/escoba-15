@@ -9,6 +9,7 @@ export interface SpanishCardProps {
   selected?: boolean;
   highlighted?: boolean;
   disabled?: boolean;
+  showFigureValues?: boolean;
 }
 
 const SUIT_META: Record<
@@ -267,6 +268,7 @@ export function SpanishCard({
   selected = false,
   highlighted = false,
   disabled = false,
+  showFigureValues = false,
 }: SpanishCardProps) {
   const sizeClass = compact ? 'spanish-card--compact' : '';
 
@@ -305,6 +307,10 @@ export function SpanishCard({
         <span className="spanish-card__number">{card.number}</span>
         <SuitSvg suit={card.suit} className="spanish-card__mini-suit" />
       </span>
+
+      {showFigureValues && card.number >= 10 && (
+        <span className="spanish-card__value-badge">{`= ${card.value}`}</span>
+      )}
 
       <span className="spanish-card__center">
         <SuitSvg suit={card.suit} className="spanish-card__suit-art" />
