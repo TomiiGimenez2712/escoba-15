@@ -6,6 +6,7 @@ import { createGame, playCard } from '../shared/engine';
 import type { Card, GameState, PlayerGameView, RoomSnapshot } from '../shared/types';
 import App from './App';
 import { GameTable } from './components/GameTable';
+import * as soundUtils from './utils/sound';
 
 type SocketListener = (...args: unknown[]) => void;
 
@@ -1269,6 +1270,7 @@ describe('App — partida online sincronizada, reconexión y revancha (H6)', () 
 
 describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
   afterEach(() => {
+    vi.useRealTimers();
     cleanup();
     vi.restoreAllMocks();
   });
@@ -1308,5 +1310,96 @@ describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
 
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('muestra ayuda visual de figuras con toggle "Valores", controla audio con "Sonido" y vuelve al menú con un único botón "Salir"', async () => {
+    vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const discardSpy = vi.spyOn(soundUtils, 'playDiscardSound');
+    const captureSpy = vi.spyOn(soundUtils, 'playCaptureSound');
+
+    const initialGame: GameState = {
+      players: [
+        {
+          id: 'player-1',
+          name: 'Tú',
+          isBot: false,
+          hand: pickCards(['oros-10', 'copas-11', 'oros-3']),
+          captured: [],
+          escobas: 0,
+          score: 0,
+        },
+        {
+          id: 'bot-1',
+          name: 'Bot',
+          isBot: true,
+          hand: pickCards(['bastos-1', 'bastos-2', 'espadas-1']),
+          captured: [],
+          escobas: 0,
+          score: 0,
+        },
+      ],
+      table: pickCards(['bastos-12', 'copas-7', 'espadas-5']),
+      deck: pickCards(['oros-1', 'oros-2', 'oros-4', 'oros-5', 'oros-6', 'oros-7']),
+      dealerIndex: 1,
+      currentPlayerIndex: 0,
+      lastCapturerId: null,
+      lastAction: null,
+      targetScore: 15,
+      round: 1,
+      escobaDeMano: 0,
+      phase: 'playing',
+      roundSummary: null,
+      winnerId: null,
+      winnerTeamId: null,
+      isTiebreaker: false,
+    };
+
+    render(<App initialGame={initialGame} />);
+
+    const valuesButton = screen.getByRole('button', { name: /valores/i });
+    const soundButton = screen.getByRole('button', { name: /sonido/i });
+    expect(valuesButton).toHaveAttribute('aria-pressed', 'true');
+    expect(soundButton).toHaveAttribute('aria-pressed', 'true');
+
+    const playerHand = screen.getByRole('region', { name: /tu mano/i });
+    const tableZone = screen.getByRole('region', { name: /mesa/i });
+    const rivalZone = screen.getByRole('region', { name: /rival/i });
+
+    const card10 = within(playerHand).getByRole('button', { name: '10 de oros' });
+    const card11 = within(playerHand).getByRole('button', { name: '11 de copas' });
+    const card12 = within(tableZone).getByLabelText('12 de bastos');
+
+    expect(within(card10).getByText('= 8')).toBeInTheDocument();
+    expect(within(card11).getByText('= 9')).toBeInTheDocument();
+    expect(within(card12).getByText('= 10')).toBeInTheDocument();
+
+    expect(within(rivalZone).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(3);
+    expect(rivalZone).not.toHaveTextContent(/=\s*(8|9|10)|oros|copas|espadas|bastos|turno|\b(4|5|6|7|10|11|12)\b/i);
+
+    await user.click(valuesButton);
+    expect(valuesButton).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByText('= 8')).not.toBeInTheDocument();
+    expect(screen.queryByText('= 9')).not.toBeInTheDocument();
+    expect(screen.queryByText('= 10')).not.toBeInTheDocument();
+
+    await user.click(card10);
+    await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
+    expect(captureSpy).toHaveBeenCalledWith({ muted: false });
+
+    await user.click(soundButton);
+    expect(soundButton).toHaveAttribute('aria-pressed', 'false');
+
+    await act(async () => {
+      vi.advanceTimersByTime(650);
+    });
+    expect(discardSpy).toHaveBeenCalledWith({ muted: true });
+
+    const exitButtons = screen.getAllByRole('button', { name: /salir/i });
+    expect(exitButtons).toHaveLength(1);
+    await user.click(exitButtons[0]);
+
+    expect(screen.getByRole('heading', { name: /escoba del 15/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /jugar/i })).toBeInTheDocument();
   });
 });
