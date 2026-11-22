@@ -460,53 +460,6 @@ export function GameTable({
           </section>
         </div>
 
-        {isLocalTurn && onPlayAction && (selectedCard || selectedTableCards.length > 0) && (
-          <div className="action-bar">
-            {selectedCard && selectedTableCards.length > 0 ? (
-              <p className="selection-sum">
-                {`Suma elegida: ${totalSelectedSum} / 15`}
-              </p>
-            ) : selectedCard ? (
-              <p className="selection-hint">
-                Tocá cartas de la mesa para sumar 15 o tirá tu carta.
-              </p>
-            ) : (
-              <p className="selection-hint">
-                Elegí una carta de tu mano para completar 15.
-              </p>
-            )}
-            <div className="action-buttons">
-              {selectedCard && selectedTableCards.length > 0 && (
-                <button
-                  type="button"
-                  className="action-button action-button--capture"
-                  onClick={handleCapture}
-                  disabled={!canCapture}
-                >
-                  Levantar (15)
-                </button>
-              )}
-              {selectedCard ? (
-                <button
-                  type="button"
-                  className="action-button action-button--discard"
-                  onClick={handleDiscard}
-                >
-                  Tirar a la mesa
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="action-button action-button--discard"
-                  onClick={() => setSelectedTableCardIds([])}
-                >
-                  Limpiar mesa
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         <section
           className="table-zone table-zone--player"
           role="region"
@@ -531,6 +484,75 @@ export function GameTable({
             ))}
           </div>
         </section>
+
+        <div
+          className={`action-bar ${
+            !isLocalTurn || (!selectedCard && selectedTableCards.length === 0)
+              ? 'action-bar--idle'
+              : ''
+          }`.trim()}
+        >
+          {!onPlayAction || !isPlaying ? (
+            <p className="selection-hint">Partida finalizada.</p>
+          ) : !isLocalTurn ? (
+            <p className="selection-hint">
+              {`Esperando jugada de ${currentPlayer?.name ?? 'rival'}...`}
+            </p>
+          ) : selectedCard && selectedTableCards.length > 0 ? (
+            <>
+              <p className="selection-sum">{`Suma elegida: ${totalSelectedSum} / 15`}</p>
+              <div className="action-buttons">
+                <button
+                  type="button"
+                  className="action-button action-button--capture"
+                  onClick={handleCapture}
+                  disabled={!canCapture}
+                >
+                  Levantar (15)
+                </button>
+                <button
+                  type="button"
+                  className="action-button action-button--discard"
+                  onClick={handleDiscard}
+                >
+                  Tirar a la mesa
+                </button>
+              </div>
+            </>
+          ) : selectedCard ? (
+            <>
+              <p className="selection-hint">
+                Tocá cartas de la mesa para sumar 15 o tirá tu carta.
+              </p>
+              <div className="action-buttons">
+                <button
+                  type="button"
+                  className="action-button action-button--discard"
+                  onClick={handleDiscard}
+                >
+                  Tirar a la mesa
+                </button>
+              </div>
+            </>
+          ) : selectedTableCards.length > 0 ? (
+            <>
+              <p className="selection-hint">
+                Elegí una carta de tu mano para completar 15.
+              </p>
+              <div className="action-buttons">
+                <button
+                  type="button"
+                  className="action-button action-button--discard"
+                  onClick={() => setSelectedTableCardIds([])}
+                >
+                  Limpiar mesa
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="selection-hint">Elegí una carta de tu mano para jugar.</p>
+          )}
+        </div>
       </div>
 
       <aside className="table-sidebar">

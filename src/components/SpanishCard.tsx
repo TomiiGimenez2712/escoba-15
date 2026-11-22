@@ -38,23 +38,15 @@ function SuitSvg({ suit, className }: { suit: Suit; className?: string }) {
           aria-hidden="true"
           data-suit-svg="oros"
         >
-          <circle cx="32" cy="32" r="24" fill="#facc15" stroke="#a16207" strokeWidth="3" />
-          <circle cx="32" cy="32" r="18" fill="#fef08a" stroke="#ca8a04" strokeWidth="2" />
+          <circle cx="32" cy="32" r="24" fill="#f59e0b" stroke="#b45309" strokeWidth="2.5" />
+          <circle cx="32" cy="32" r="18" fill="#fef3c7" stroke="#d97706" strokeWidth="1.8" />
           <path
-            d="M32 10 L35 17 L42 13 L41 20 L49 19 L45 26 L53 29 L47 33 L53 38 L45 40 L48 47 L40 46 L40 53 L34 49 L32 56 L30 49 L24 53 L24 46 L16 47 L19 40 L11 38 L17 33 L11 29 L19 26 L15 19 L23 20 L22 13 L29 17 Z"
-            fill="#eab308"
-            opacity="0.35"
+            d="M32 14 L35.2 24.8 L45.5 18.5 L39.2 28.8 L50 32 L39.2 35.2 L45.5 45.5 L35.2 39.2 L32 50 L28.8 39.2 L18.5 45.5 L24.8 35.2 L14 32 L24.8 28.8 L18.5 18.5 L28.8 24.8 Z"
+            fill="#f59e0b"
+            opacity="0.72"
           />
-          <circle cx="32" cy="32" r="11" fill="#f59e0b" stroke="#92400e" strokeWidth="1.8" />
-          <circle cx="28.5" cy="29.5" r="1.4" fill="#78350f" />
-          <circle cx="35.5" cy="29.5" r="1.4" fill="#78350f" />
-          <path
-            d="M28 35 Q32 38 36 35"
-            fill="none"
-            stroke="#78350f"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
+          <circle cx="32" cy="32" r="7" fill="#fffbeb" stroke="#b45309" strokeWidth="1.8" />
+          <circle cx="32" cy="32" r="2.6" fill="#d97706" />
         </svg>
       );
 
@@ -67,43 +59,43 @@ function SuitSvg({ suit, className }: { suit: Suit; className?: string }) {
           data-suit-svg="copas"
         >
           <path
-            d="M15 14 H49 L46 28 C44.5 35 39 39 32 39 C25 39 19.5 35 18 28 Z"
-            fill="#f59e0b"
-            stroke="#92400e"
-            strokeWidth="2.5"
+            d="M16 14 H48 L45 28 C43.5 35 38.5 39 32 39 C25.5 39 20.5 35 19 28 Z"
+            fill="#dc2626"
+            stroke="#7f1d1d"
+            strokeWidth="2.4"
             strokeLinejoin="round"
           />
           <path
-            d="M19 18 H45 L43 27 C41.8 32 37.5 35 32 35 C26.5 35 22.2 32 21 27 Z"
-            fill="#fef08a"
-            opacity="0.7"
+            d="M20 18 H44 L42 26.5 C40.8 31.5 37 34.5 32 34.5 C27 34.5 23.2 31.5 22 26.5 Z"
+            fill="#fca5a5"
+            opacity="0.35"
           />
           <rect
-            x="28"
+            x="29"
             y="39"
-            width="8"
+            width="6"
             height="10"
-            fill="#d97706"
-            stroke="#92400e"
+            fill="#b91c1c"
+            stroke="#7f1d1d"
             strokeWidth="2"
           />
           <ellipse
             cx="32"
             cy="44"
-            rx="6"
-            ry="3"
-            fill="#b91c1c"
-            stroke="#92400e"
-            strokeWidth="1.8"
+            rx="5.5"
+            ry="2.6"
+            fill="#ef4444"
+            stroke="#7f1d1d"
+            strokeWidth="1.6"
           />
           <path
-            d="M18 54 C20 49 25 48 32 48 C39 48 44 49 46 54 Z"
-            fill="#eab308"
-            stroke="#92400e"
-            strokeWidth="2.5"
+            d="M19 54 C21 49.5 25.5 48 32 48 C38.5 48 43 49.5 45 54 Z"
+            fill="#b91c1c"
+            stroke="#7f1d1d"
+            strokeWidth="2.4"
             strokeLinejoin="round"
           />
-          <circle cx="32" cy="24" r="3" fill="#b91c1c" />
+          <circle cx="32" cy="24" r="2.6" fill="#fef2f2" opacity="0.85" />
         </svg>
       );
 
@@ -247,15 +239,15 @@ function CardBackArt() {
       viewBox="0 0 100 160"
       aria-hidden="true"
     >
-      <rect x="6" y="6" width="88" height="148" rx="6" fill="#881337" stroke="#fbbf24" strokeWidth="2.5" />
-      <rect x="12" y="12" width="76" height="136" rx="4" fill="none" stroke="#fde68a" strokeWidth="1.2" />
-      <pattern id={patternId} width="16" height="16" patternUnits="userSpaceOnUse">
-        <path d="M8 0 L16 8 L8 16 L0 8 Z" fill="none" stroke="#fda4af" strokeWidth="0.9" opacity="0.45" />
+      <rect x="6" y="6" width="88" height="148" rx="6" fill="#1e293b" stroke="#64748b" strokeWidth="2" />
+      <rect x="12" y="12" width="76" height="136" rx="4" fill="none" stroke="#94a3b8" strokeWidth="1" opacity="0.6" />
+      <pattern id={patternId} width="14" height="14" patternUnits="userSpaceOnUse">
+        <path d="M7 0 L14 7 L7 14 L0 7 Z" fill="none" stroke="#64748b" strokeWidth="0.8" opacity="0.38" />
       </pattern>
       <rect x="14" y="14" width="72" height="132" rx="3" fill={`url(#${patternId})`} />
-      <circle cx="50" cy="80" r="18" fill="#9f1239" stroke="#fbbf24" strokeWidth="2" />
-      <path d="M50 65 L56 80 L50 95 L44 80 Z" fill="#fde68a" />
-      <path d="M35 80 L50 74 L65 80 L50 86 Z" fill="#fbbf24" />
+      <circle cx="50" cy="80" r="15" fill="#0f172a" stroke="#f59e0b" strokeWidth="1.6" />
+      <path d="M50 68 L54.5 80 L50 92 L45.5 80 Z" fill="#fde68a" />
+      <path d="M38 80 L50 75.5 L62 80 L50 84.5 Z" fill="#f59e0b" />
     </svg>
   );
 }
