@@ -879,10 +879,13 @@ describe('App — lobby online y salas con código (H5)', () => {
 });
 
 describe('App — partida online sincronizada, reconexión y revancha (H6)', () => {
+  const originalSearch = window.location.search;
+
   afterEach(() => {
     cleanup();
     sessionStorage.clear();
     resetFakeSocket();
+    window.history.replaceState({}, '', originalSearch || '/');
     vi.restoreAllMocks();
   });
 
@@ -1136,5 +1139,129 @@ describe('App — partida online sincronizada, reconexión y revancha (H6)', () 
     expect(screen.getByRole('heading', { name: /escoba del 15/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /online con un amigo/i })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /tu mano/i })).not.toBeInTheDocument();
+  });
+
+  it('reconecta automáticamente desde sessionStorage, omite reconexión con ?sala= distinto y limpia sesión inválida si falla', async () => {
+    const savedSession = {
+      code: 'K7M9P',
+      sessionToken: 'token-1',
+      playerName: 'Ana',
+    };
+
+    // Caso 1: reconexión automática desde sessionStorage sin ?sala= distinto
+    sessionStorage.setItem('escoba15_online_session', JSON.stringify(savedSession));
+    const firstRender = render(<App />);
+
+    expect(mockIo).toHaveBeenCalledTimes(1);
+    const reconnectCall = fakeSocket.emit.mock.calls.find(([event]) => event === 'room:reconnect');
+    expect(reconnectCall).toBeDefined();
+    expect(reconnectCall?.[1]).toEqual({ code: 'K7M9P', sessionToken: 'token-1' });
+
+    const restoredSnapshot: RoomSnapshot = {
+      code: 'K7M9P',
+      status: 'playing',
+      maxPlayers: 2,
+      targetScore: 15,
+      players: [
+        { id: 'p1', name: 'Ana', connected: true },
+        { id: 'p2', name: 'Luis', connected: true },
+      ],
+      selfPlayerId: 'p1',
+      sessionToken: 'token-1',
+      gameView: {
+        players: [
+          {
+            id: 'p1',
+            name: 'Ana',
+            isBot: false,
+            hand: pickCards(['oros-1', 'oros-2', 'oros-3']),
+            handCount: 3,
+            captured: [],
+            escobas: 0,
+            score: 0,
+            connected: true,
+          },
+          {
+            id: 'p2',
+            name: 'Luis',
+            isBot: false,
+            handCount: 3,
+            captured: [],
+            escobas: 0,
+            score: 0,
+            connected: true,
+          },
+        ],
+        table: pickCards(['copas-4', 'espadas-5', 'bastos-6', 'oros-7']),
+        deckCount: 30,
+        localPlayerId: 'p1',
+        dealerIndex: 1,
+        currentPlayerIndex: 0,
+        lastCapturerId: null,
+        lastAction: null,
+        targetScore: 15,
+        round: 1,
+        escobaDeMano: 0,
+        phase: 'playing',
+        roundSummary: null,
+        winnerId: null,
+        winnerTeamId: null,
+        isTiebreaker: false,
+      },
+    };
+
+    act(() => {
+      triggerServerEvent('room:state', restoredSnapshot);
+    });
+
+    expect(
+      within(screen.getByRole('region', { name: /tu mano/i })).getByRole('button', { name: '1 de oros' }),
+    ).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: /rival/i })).getByText(/luis/i)).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: /mazo/i })).getByText(/\b30\b/)).toBeInTheDocument();
+
+    firstRender.unmount();
+    resetFakeSocket();
+
+    // Caso 2: con ?sala=OTRAA diferente no llama a io() ni emite room:reconnect al montar
+    window.history.replaceState({}, '', '?sala=OTRAA');
+    const secondRender = render(<App />);
+
+    expect(mockIo).not.toHaveBeenCalled();
+    expect(fakeSocket.emit).not.toHaveBeenCalled();
+    expect(screen.getByRole('tab', { name: /online con un amigo/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText(/código de sala/i)).toHaveValue('OTRAA');
+
+    secondRender.unmount();
+    window.history.replaceState({}, '', originalSearch || '/');
+    resetFakeSocket();
+
+    // Caso 3: si room:reconnect falla, limpia sessionStorage, desconecta y muestra el error sin loading bloqueado
+    sessionStorage.setItem('escoba15_online_session', JSON.stringify(savedSession));
+    render(<App />);
+
+    expect(mockIo).toHaveBeenCalledTimes(1);
+    const failedReconnectCall = fakeSocket.emit.mock.calls.find(([event]) => event === 'room:reconnect');
+    expect(failedReconnectCall).toBeDefined();
+    const reconnectAck = failedReconnectCall?.[2] as
+      | ((ack: { ok: false; error: string }) => void)
+      | undefined;
+    expect(typeof reconnectAck).toBe('function');
+
+    act(() => {
+      reconnectAck?.({ ok: false, error: 'La sala expiró.' });
+    });
+
+    expect(sessionStorage.getItem('escoba15_online_session')).toBeNull();
+    expect(fakeSocket.disconnect).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('alert')).toHaveTextContent(/la sala expiró\./i);
+
+    if (!screen.queryByRole('button', { name: /crear sala/i })) {
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('tab', { name: /online con un amigo/i }));
+    }
+
+    expect(screen.getByRole('button', { name: /crear sala/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /unirse a sala/i })).toBeEnabled();
   });
 });
