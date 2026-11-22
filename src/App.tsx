@@ -3,6 +3,7 @@ import { GameTable } from './components/GameTable';
 import { HomeScreen } from './components/HomeScreen';
 import { RoundSummaryModal } from './components/RoundSummaryModal';
 import { useLocalGame } from './hooks/useLocalGame';
+import { useOnlineGame } from './hooks/useOnlineGame';
 
 export interface AppProps {
   initialGame?: GameState | null;
@@ -22,6 +23,15 @@ export default function App({ initialGame = null }: AppProps = {}) {
     nextRound,
     rematch,
   } = useLocalGame({ initialGame });
+
+  const {
+    snapshot: onlineSnapshot,
+    error: onlineError,
+    loading: onlineLoading,
+    connectAndCreate,
+    connectAndJoin,
+    leaveRoom,
+  } = useOnlineGame();
 
   if (game) {
     const showRoundModal =
@@ -54,6 +64,12 @@ export default function App({ initialGame = null }: AppProps = {}) {
       onPlayerCountChange={setPlayerCount}
       onTargetScoreChange={setTargetScore}
       onStart={startGame}
+      onlineSnapshot={onlineSnapshot}
+      onlineError={onlineError}
+      onlineLoading={onlineLoading}
+      onCreateOnlineRoom={connectAndCreate}
+      onJoinOnlineRoom={connectAndJoin}
+      onLeaveOnlineRoom={leaveRoom}
     />
   );
 }
