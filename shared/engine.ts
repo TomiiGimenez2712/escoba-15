@@ -1,4 +1,5 @@
 import { createDeck, getCardValue, shuffleDeck } from './deck';
+import { scoreRound } from './scoring';
 import type {
   Card,
   CreateGameOptions,
@@ -206,8 +207,65 @@ function resolveCapturedCards(
   return capturedCards;
 }
 
+/** Reparte 3 nuevas cartas por jugador desde el mazo sin modificar la mesa. */
+function dealNextHands(state: GameState): GameState {
+  const players = state.players.map((player, index) => {
+    const start = index * CARDS_PER_HAND;
+    return {
+      ...player,
+      hand: state.deck.slice(start, start + CARDS_PER_HAND),
+    };
+  });
+
+  return {
+    ...state,
+    players,
+    deck: state.deck.slice(state.players.length * CARDS_PER_HAND),
+    phase: 'playing',
+    roundSummary: null,
+  };
+}
+
+/** Asigna cartas sobrantes sin sumar escoba y cierra la ronda calculando el puntaje oficial. */
+function finishRound(state: GameState): GameState {
+  const hasLeftovers = state.table.length > 0 && state.lastCapturerId !== null;
+  const leftoverCards = hasLeftovers ? [...state.table] : [];
+  const leftoverWinnerId = hasLeftovers ? state.lastCapturerId : null;
+
+  const playersWithLeftovers = hasLeftovers
+    ? state.players.map((player) =>
+        player.id === leftoverWinnerId
+          ? { ...player, captured: [...player.captured, ...leftoverCards] }
+          : player,
+      )
+    : state.players;
+
+  const roundResult = scoreRound({
+    players: playersWithLeftovers,
+    round: state.round,
+    targetScore: state.targetScore,
+    leftoverCards,
+    leftoverWinnerId,
+  });
+
+  return {
+    ...state,
+    players: roundResult.players,
+    table: [],
+    phase: roundResult.phase,
+    roundSummary: roundResult.summary,
+    winnerId: roundResult.winnerId,
+    winnerTeamId: roundResult.winnerTeamId,
+    isTiebreaker: roundResult.isTiebreaker,
+  };
+}
+
 /** Ejecuta una jugada (`capture` o `discard`) del jugador actual y retorna el nuevo estado. */
 export function playCard(state: GameState, playerId: string, action: PlayAction): GameState {
+  if (state.phase !== 'playing') {
+    throw new Error(`Cannot play card when game phase is '${state.phase}'`);
+  }
+
   const playerIndex = state.currentPlayerIndex;
   const player = state.players[playerIndex];
   if (!player || player.id !== playerId) {
@@ -253,12 +311,23 @@ export function playCard(state: GameState, playerId: string, action: PlayAction)
     madeEscoba,
   };
 
-  return {
+  const nextPlayers = state.players.map((p, index) => (index === playerIndex ? updatedPlayer : p));
+  const nextState: GameState = {
     ...state,
-    players: state.players.map((p, index) => (index === playerIndex ? updatedPlayer : p)),
+    players: nextPlayers,
     table: nextTable,
     currentPlayerIndex: (playerIndex + 1) % state.players.length,
     lastCapturerId: nextLastCapturerId,
     lastAction,
   };
+
+  if (nextPlayers.some((p) => p.hand.length > 0)) {
+    return nextState;
+  }
+
+  if (state.deck.length > 0) {
+    return dealNextHands(nextState);
+  }
+
+  return finishRound(nextState);
 }
