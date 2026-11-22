@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDeck } from '../shared/deck';
 import { createGame, playCard } from '../shared/engine';
-import type { Card, GameState, RoomSnapshot } from '../shared/types';
+import type { Card, GameState, PlayerGameView, RoomSnapshot } from '../shared/types';
 import App from './App';
 import { GameTable } from './components/GameTable';
 
@@ -693,9 +693,11 @@ describe('App — flujo inicial y mesa de juego', () => {
 
 describe('App — lobby online y salas con código (H5)', () => {
   const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  const originalSearch = window.location.search;
 
   afterEach(() => {
     resetFakeSocket();
+    window.history.replaceState({}, '', originalSearch || '/');
     if (originalClipboardDescriptor) {
       Object.defineProperty(navigator, 'clipboard', originalClipboardDescriptor);
     } else {
@@ -765,5 +767,112 @@ describe('App — lobby online y salas con código (H5)', () => {
 
     await user.click(screen.getByRole('button', { name: /copiar enlace/i }));
     expect(writeText).toHaveBeenLastCalledWith(expect.stringMatching(/\?sala=K7M9P$/));
+  });
+
+  it('abre Online con un amigo desde ?sala=, se une con código normalizado, muestra room:error y renderiza GameTable con PlayerGameView', async () => {
+    const user = userEvent.setup();
+    window.history.replaceState({}, '', '?sala=k7m9p');
+
+    render(<App />);
+
+    const onlineTab = screen.getByRole('tab', { name: /online con un amigo/i });
+    expect(onlineTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText(/código de sala/i)).toHaveValue('K7M9P');
+
+    await user.type(screen.getByLabelText(/tu nombre/i), 'Luis');
+    await user.click(screen.getByRole('button', { name: /unirse a sala/i }));
+
+    expect(mockIo).toHaveBeenCalledTimes(1);
+    const joinCall = fakeSocket.emit.mock.calls.find(([event]) => event === 'room:join');
+    expect(joinCall).toBeDefined();
+    expect(joinCall?.[1]).toEqual({ code: 'K7M9P', playerName: 'Luis' });
+
+    act(() => {
+      triggerServerEvent('room:error', { message: 'La sala no existe' });
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/la sala no existe/i);
+
+    const gameView: PlayerGameView = {
+      players: [
+        {
+          id: 'p1',
+          name: 'Ana',
+          isBot: false,
+          handCount: 3,
+          captured: [],
+          escobas: 0,
+          score: 0,
+          connected: true,
+        },
+        {
+          id: 'p2',
+          name: 'Luis',
+          isBot: false,
+          hand: pickCards(['oros-1', 'oros-2', 'oros-3']),
+          handCount: 3,
+          captured: [],
+          escobas: 0,
+          score: 0,
+          connected: true,
+        },
+      ],
+      table: pickCards(['copas-4', 'espadas-5', 'bastos-6', 'oros-7']),
+      deckCount: 30,
+      localPlayerId: 'p2',
+      dealerIndex: 1,
+      currentPlayerIndex: 0,
+      lastCapturerId: null,
+      lastAction: null,
+      targetScore: 15,
+      round: 1,
+      escobaDeMano: 0,
+      phase: 'playing',
+      roundSummary: null,
+      winnerId: null,
+      winnerTeamId: null,
+      isTiebreaker: false,
+    };
+
+    const playingSnapshot: RoomSnapshot = {
+      code: 'K7M9P',
+      status: 'playing',
+      maxPlayers: 2,
+      targetScore: 15,
+      players: [
+        { id: 'p1', name: 'Ana', connected: true },
+        { id: 'p2', name: 'Luis', connected: true },
+      ],
+      selfPlayerId: 'p2',
+      sessionToken: 'token-2',
+      gameView,
+    };
+
+    act(() => {
+      triggerServerEvent('room:state', playingSnapshot);
+    });
+
+    expect(screen.queryByRole('button', { name: /unirse a sala/i })).not.toBeInTheDocument();
+
+    const playerHand = screen.getByRole('region', { name: /tu mano/i });
+    expect(within(playerHand).getAllByLabelText(/de (oros|copas|espadas|bastos)/i)).toHaveLength(3);
+    expect(within(playerHand).getByLabelText(/1 de oros/i)).toBeInTheDocument();
+    expect(within(playerHand).getByLabelText(/2 de oros/i)).toBeInTheDocument();
+    expect(within(playerHand).getByLabelText(/3 de oros/i)).toBeInTheDocument();
+
+    const tableZone = screen.getByRole('region', { name: /mesa/i });
+    expect(within(tableZone).getAllByLabelText(/de (oros|copas|espadas|bastos)/i)).toHaveLength(4);
+    expect(within(tableZone).getByLabelText(/4 de copas/i)).toBeInTheDocument();
+    expect(within(tableZone).getByLabelText(/5 de espadas/i)).toBeInTheDocument();
+    expect(within(tableZone).getByLabelText(/6 de bastos/i)).toBeInTheDocument();
+    expect(within(tableZone).getByLabelText(/7 de oros/i)).toBeInTheDocument();
+
+    const deckZone = screen.getByRole('region', { name: /mazo/i });
+    expect(within(deckZone).getByText(/\b30\b/)).toBeInTheDocument();
+
+    const rivalZone = screen.getByRole('region', { name: /rival/i });
+    expect(within(rivalZone).getByText(/ana/i)).toBeInTheDocument();
+    expect(within(rivalZone).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(3);
+    expect(within(rivalZone).queryAllByLabelText(/de (oros|copas|espadas|bastos)/i)).toHaveLength(0);
   });
 });
