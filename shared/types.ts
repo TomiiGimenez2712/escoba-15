@@ -28,6 +28,8 @@ export interface Player {
 
 export type TargetScore = 15 | 21;
 
+export type BotDifficulty = 'facil' | 'medio' | 'dificil';
+
 export interface CreateGameOptions {
   players: PlayerConfig[];
   targetScore?: TargetScore;
