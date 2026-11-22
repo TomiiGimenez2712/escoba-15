@@ -1,5 +1,14 @@
 import { createDeck, getCardValue, shuffleDeck } from './deck';
-import type { Card, CreateGameOptions, GameState, Player, Suit, TargetScore } from './types';
+import type {
+  Card,
+  CreateGameOptions,
+  GameState,
+  LastAction,
+  PlayAction,
+  Player,
+  Suit,
+  TargetScore,
+} from './types';
 
 const VALID_SUITS = new Set<Suit>(['oros', 'copas', 'espadas', 'bastos']);
 const CARDS_PER_HAND = 3;
@@ -156,4 +165,58 @@ export function findCaptureCombinations(handCard: Card, tableCards: readonly Car
 
   backtrack(0, 0);
   return combinations;
+}
+
+/** Ejecuta una jugada (`capture` o `discard`) del jugador actual y retorna el nuevo estado. */
+export function playCard(state: GameState, playerId: string, action: PlayAction): GameState {
+  const playerIndex = state.currentPlayerIndex;
+  const player = state.players[playerIndex];
+  const playedCard = player.hand.find((card) => card.id === action.cardId);
+
+  if (!playedCard) {
+    throw new Error(`Card ${action.cardId} is not in player ${playerId}'s hand`);
+  }
+
+  let capturedCards: Card[] = [];
+  let nextTable: Card[];
+  let madeEscoba = false;
+  let nextLastCapturerId = state.lastCapturerId;
+
+  if (action.type === 'capture') {
+    const tableIdSet = new Set(action.tableCardIds);
+    capturedCards = state.table.filter((card) => tableIdSet.has(card.id));
+    nextTable = state.table.filter((card) => !tableIdSet.has(card.id));
+    madeEscoba = nextTable.length === 0;
+    nextLastCapturerId = player.id;
+  } else {
+    nextTable = [...state.table, playedCard];
+  }
+
+  const updatedPlayer: Player = {
+    ...player,
+    hand: player.hand.filter((card) => card.id !== action.cardId),
+    captured:
+      action.type === 'capture'
+        ? [...player.captured, playedCard, ...capturedCards]
+        : player.captured,
+    escobas: player.escobas + (madeEscoba ? 1 : 0),
+  };
+
+  const lastAction: LastAction = {
+    playerId: player.id,
+    playerName: player.name,
+    type: action.type,
+    playedCard,
+    capturedCards,
+    madeEscoba,
+  };
+
+  return {
+    ...state,
+    players: state.players.map((p, index) => (index === playerIndex ? updatedPlayer : p)),
+    table: nextTable,
+    currentPlayerIndex: (playerIndex + 1) % state.players.length,
+    lastCapturerId: nextLastCapturerId,
+    lastAction,
+  };
 }
