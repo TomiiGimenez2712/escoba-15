@@ -334,4 +334,109 @@ describe('shared/engine — playCard', () => {
 
     expect(state).toEqual(snapshot);
   });
+
+  it('reparte 3 cartas al vaciarse las manos, asigna sobrantes sin escoba al agotar el mazo, bloquea playCard fuera de playing y maneja lastCapturerId null', () => {
+    const deck = createDeck();
+    const players = [
+      { id: 'p1', name: 'Tú' },
+      { id: 'p2', name: 'Bot', isBot: true },
+    ];
+
+    const state0 = createGame({ players, dealerIndex: 1, deck });
+    expect(state0.phase).toBe('playing');
+    expect(state0.roundSummary).toBeNull();
+    expect(state0.winnerId).toBeNull();
+    expect(state0.winnerTeamId).toBeNull();
+    expect(state0.isTiebreaker).toBe(false);
+
+    // Mano 1 (6 jugadas): p1 descarta oros-1, p2 captura oros-5 + oros-12 (15) y el resto descarta
+    let state = playCard(state0, 'p1', { type: 'discard', cardId: 'oros-1' });
+    state = playCard(state, 'p2', {
+      type: 'capture',
+      cardId: 'oros-5',
+      tableCardIds: ['oros-12'],
+    });
+    expect(state.lastCapturerId).toBe('p2');
+
+    for (let turn = 0; turn < 4; turn += 1) {
+      const current = state.players[state.currentPlayerIndex];
+      state = playCard(state, current.id, { type: 'discard', cardId: current.hand[0].id });
+    }
+
+    // Al vaciarse todas las manos con deck.length > 0, reparte 3 cartas nuevas a c/u sin tocar table
+    expect(state.phase).toBe('playing');
+    expect(state.roundSummary).toBeNull();
+    expect(state.currentPlayerIndex).toBe(0);
+    expect(state.players[0].hand).toEqual(state0.deck.slice(0, 3));
+    expect(state.players[1].hand).toEqual(state0.deck.slice(3, 6));
+    expect(state.deck).toEqual(state0.deck.slice(6));
+    expect(state.table).toHaveLength(8);
+
+    // Completar las 29 jugadas siguientes hasta quedar en la última carta de la ronda (deck.length === 0)
+    for (let turn = 0; turn < 29; turn += 1) {
+      const current = state.players[state.currentPlayerIndex];
+      state = playCard(state, current.id, { type: 'discard', cardId: current.hand[0].id });
+    }
+
+    expect(state.deck).toEqual([]);
+    expect(state.phase).toBe('playing');
+    expect(state.currentPlayerIndex).toBe(1);
+    expect(state.players[0].hand).toHaveLength(0);
+    expect(state.players[1].hand).toHaveLength(1);
+
+    const lastCard = state.players[1].hand[0];
+    const expectedLeftovers = [...state.table, lastCard];
+    const endState = playCard(state, 'p2', { type: 'discard', cardId: lastCard.id });
+
+    // Fin de ronda: sobrantes van a lastCapturerId ('p2') sin sumar escobas ni marcar madeEscoba
+    expect(endState.table).toEqual([]);
+    expect(endState.players[1].escobas).toBe(0);
+    expect(endState.lastAction?.madeEscoba).toBe(false);
+    expect(endState.players[0].captured).toEqual([]);
+    expect(endState.players[1].captured).toHaveLength(40);
+    expect(endState.players[1].captured).toEqual(expect.arrayContaining(expectedLeftovers));
+    expect(endState.phase).toBe('round_end');
+    expect(endState.roundSummary).not.toBeNull();
+    expect(endState.roundSummary?.leftoverWinnerId).toBe('p2');
+    expect(endState.roundSummary?.leftoverCards).toEqual(expectedLeftovers);
+
+    // Bloqueo de playCard fuera de 'playing' sin mutar el estado
+    const endSnapshot = structuredClone(endState);
+    expect(() => playCard(endState, 'p1', { type: 'discard', cardId: 'oros-1' })).toThrow(/\S/);
+    expect(endState).toEqual(endSnapshot);
+
+    const roundEndWithCards = { ...state0, phase: 'round_end' as const };
+    const roundEndSnapshot = structuredClone(roundEndWithCards);
+    expect(() =>
+      playCard(roundEndWithCards, 'p1', { type: 'discard', cardId: state0.players[0].hand[0].id }),
+    ).toThrow(/\S/);
+    expect(roundEndWithCards).toEqual(roundEndSnapshot);
+
+    const gameOverWithCards = { ...state0, phase: 'game_over' as const };
+    const gameOverSnapshot = structuredClone(gameOverWithCards);
+    expect(() =>
+      playCard(gameOverWithCards, 'p1', { type: 'discard', cardId: state0.players[0].hand[0].id }),
+    ).toThrow(/\S/);
+    expect(gameOverWithCards).toEqual(gameOverSnapshot);
+
+    // Caso borde: fin de ronda sin capturas (lastCapturerId === null)
+    let noCaptureState = createGame({ players, dealerIndex: 1, deck });
+    for (let turn = 0; turn < 36; turn += 1) {
+      const current = noCaptureState.players[noCaptureState.currentPlayerIndex];
+      noCaptureState = playCard(noCaptureState, current.id, {
+        type: 'discard',
+        cardId: current.hand[0].id,
+      });
+    }
+
+    expect(noCaptureState.lastCapturerId).toBeNull();
+    expect(noCaptureState.table).toEqual([]);
+    expect(noCaptureState.players[0].captured).toEqual([]);
+    expect(noCaptureState.players[1].captured).toEqual([]);
+    expect(noCaptureState.players[0].escobas).toBe(0);
+    expect(noCaptureState.players[1].escobas).toBe(0);
+    expect(noCaptureState.phase).toBe('round_end');
+    expect(noCaptureState.roundSummary?.leftoverWinnerId).toBeNull();
+    expect(noCaptureState.roundSummary?.leftoverCards).toEqual([]);
+  });
 });
