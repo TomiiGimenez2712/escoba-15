@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDeck } from '../shared/deck';
@@ -30,6 +30,7 @@ function buildDeckWithPrefix(prefixIds: string[]): Card[] {
 
 describe('App — flujo inicial y mesa de juego', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -421,5 +422,58 @@ describe('App — flujo inicial y mesa de juego', () => {
     expect(within(screen.getByRole('region', { name: /rival/i })).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(3);
     expect(within(screen.getByRole('region', { name: /mazo/i })).getByText(/\b30\b/)).toBeInTheDocument();
     expect(screen.queryByText(/levantó/i)).not.toBeInTheDocument();
+  });
+
+  it('muestra HomeScreen con selectores por defecto, permite cambiar dificultad y ejecuta el turno del bot tras 650ms', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    render(<App />);
+
+    expect(screen.getByRole('heading', { name: /escoba del 15/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /medio/i })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /2 jugadores \(1v1\)/i })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /15 puntos/i })).toBeChecked();
+    const playButton = screen.getByRole('button', { name: /jugar/i });
+    expect(playButton).toBeInTheDocument();
+
+    const hardRadio = screen.getByRole('radio', { name: /difícil/i });
+    await user.click(hardRadio);
+    expect(hardRadio).toBeChecked();
+
+    await user.click(playButton);
+
+    expect(screen.getByText(/turno:\s*tú/i)).toBeInTheDocument();
+
+    const playerHand = screen.getByRole('region', { name: /tu mano/i });
+    const rivalZone = screen.getByRole('region', { name: /rival/i });
+
+    await user.click(within(playerHand).getByRole('button', { name: '1 de oros' }));
+    await user.click(screen.getByRole('button', { name: /tirar a la mesa/i }));
+
+    expect(screen.getByText(/turno:\s*bot/i)).toBeInTheDocument();
+    expect(screen.getByText(/tú tiró 1 de oros/i)).toBeInTheDocument();
+    expect(within(rivalZone).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(3);
+
+    const handButtonsWhileBotThinks = within(playerHand).getAllByRole('button');
+    expect(handButtonsWhileBotThinks).toHaveLength(2);
+    for (const button of handButtonsWhileBotThinks) {
+      expect(button).toBeDisabled();
+    }
+
+    await act(async () => {
+      vi.advanceTimersByTime(650);
+    });
+
+    expect(screen.getByText(/bot (levantó|tiró)/i)).toBeInTheDocument();
+    expect(within(rivalZone).getAllByLabelText(/dorso|carta oculta/i)).toHaveLength(2);
+    expect(screen.getByText(/turno:\s*tú/i)).toBeInTheDocument();
+
+    const handButtonsAfterBotTurn = within(playerHand).getAllByRole('button');
+    expect(handButtonsAfterBotTurn).toHaveLength(2);
+    for (const button of handButtonsAfterBotTurn) {
+      expect(button).not.toBeDisabled();
+    }
   });
 });
