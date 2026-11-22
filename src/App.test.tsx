@@ -697,6 +697,7 @@ describe('App — lobby online y salas con código (H5)', () => {
 
   afterEach(() => {
     cleanup();
+    sessionStorage.clear();
     resetFakeSocket();
     window.history.replaceState({}, '', originalSearch || '/');
     if (originalClipboardDescriptor) {

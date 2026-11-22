@@ -30,6 +30,44 @@ export interface UseOnlineGameResult {
   leaveRoom: () => void;
 }
 
+interface SavedOnlineSession {
+  code: string;
+  sessionToken: string;
+  playerName: string;
+}
+
+function readSavedOnlineSession(): SavedOnlineSession | null {
+  try {
+    if (typeof sessionStorage === 'undefined') {
+      return null;
+    }
+    const raw = sessionStorage.getItem(ONLINE_SESSION_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    const { code, sessionToken, playerName } = parsed as Record<string, unknown>;
+    if (
+      typeof code !== 'string' ||
+      !code.trim() ||
+      typeof sessionToken !== 'string' ||
+      !sessionToken.trim()
+    ) {
+      return null;
+    }
+    return {
+      code,
+      sessionToken,
+      playerName: typeof playerName === 'string' ? playerName : '',
+    };
+  } catch {
+    return null;
+  }
+}
+
 function persistOnlineSession(snapshot: RoomSnapshot): void {
   if (!snapshot.sessionToken) {
     return;
@@ -86,20 +124,42 @@ export function useOnlineGame(): UseOnlineGameResult {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  const snapshotRef = useRef<RoomSnapshot | null>(null);
+  const reconnectingRef = useRef(false);
+  const disconnectSocketRef = useRef<() => void>(() => {});
 
-  const handleRoomState = useCallback((nextSnapshot: RoomSnapshot) => {
-    persistOnlineSession(nextSnapshot);
+  const updateSnapshot = useCallback((nextSnapshot: RoomSnapshot | null) => {
+    snapshotRef.current = nextSnapshot;
     setSnapshot(nextSnapshot);
-    setError(null);
-    setLoading(false);
   }, []);
 
-  const handleRoomError = useCallback((payload: unknown) => {
-    setError(extractRoomErrorMessage(payload));
-    setLoading(false);
-  }, []);
+  const handleRoomState = useCallback(
+    (nextSnapshot: RoomSnapshot) => {
+      reconnectingRef.current = false;
+      persistOnlineSession(nextSnapshot);
+      updateSnapshot(nextSnapshot);
+      setError(null);
+      setLoading(false);
+    },
+    [updateSnapshot]
+  );
+
+  const handleRoomError = useCallback(
+    (payload: unknown) => {
+      if (reconnectingRef.current && snapshotRef.current === null) {
+        reconnectingRef.current = false;
+        clearOnlineSession();
+        disconnectSocketRef.current();
+        updateSnapshot(null);
+      }
+      setError(extractRoomErrorMessage(payload));
+      setLoading(false);
+    },
+    [updateSnapshot]
+  );
 
   const handleConnectError = useCallback(() => {
+    reconnectingRef.current = false;
     setError('No se pudo conectar con el servidor.');
     setLoading(false);
   }, []);
@@ -116,7 +176,14 @@ export function useOnlineGame(): UseOnlineGameResult {
     socketRef.current = null;
   }, [handleConnectError, handleRoomError, handleRoomState]);
 
-  useEffect(() => disconnectSocket, [disconnectSocket]);
+  disconnectSocketRef.current = disconnectSocket;
+
+  useEffect(() => {
+    return () => {
+      reconnectingRef.current = false;
+      disconnectSocket();
+    };
+  }, [disconnectSocket]);
 
   const ensureSocket = useCallback((): Socket => {
     const existing = socketRef.current;
@@ -135,19 +202,62 @@ export function useOnlineGame(): UseOnlineGameResult {
     return socket;
   }, [disconnectSocket, handleConnectError, handleRoomError, handleRoomState]);
 
-  const handleAck = useCallback((ack?: RoomAck) => {
-    if (!ack) {
+  const handleAck = useCallback(
+    (ack?: RoomAck) => {
+      if (!ack) {
+        return;
+      }
+      setLoading(false);
+      if (ack.ok) {
+        persistOnlineSession(ack.snapshot);
+        updateSnapshot(ack.snapshot);
+        setError(null);
+      } else if (ack.error) {
+        setError(ack.error);
+      }
+    },
+    [updateSnapshot]
+  );
+
+  useEffect(() => {
+    const savedSession = readSavedOnlineSession();
+    if (!savedSession) {
       return;
     }
-    setLoading(false);
-    if (ack.ok) {
-      persistOnlineSession(ack.snapshot);
-      setSnapshot(ack.snapshot);
-      setError(null);
-    } else if (ack.error) {
-      setError(ack.error);
+
+    const salaParam =
+      typeof window !== 'undefined'
+        ? (new URLSearchParams(window.location.search).get('sala')?.trim().toUpperCase() ?? '')
+        : '';
+    if (salaParam && salaParam !== savedSession.code.trim().toUpperCase()) {
+      return;
     }
-  }, []);
+
+    reconnectingRef.current = true;
+    const socket = ensureSocket();
+    setLoading(true);
+    socket.emit(
+      'room:reconnect',
+      { code: savedSession.code, sessionToken: savedSession.sessionToken },
+      (ack?: RoomAck) => {
+        if (socketRef.current !== socket) {
+          return;
+        }
+        reconnectingRef.current = false;
+        if (ack?.ok) {
+          handleAck(ack);
+          return;
+        }
+        if (ack && !ack.ok) {
+          clearOnlineSession();
+          disconnectSocket();
+          updateSnapshot(null);
+          setError(ack.error || 'No se pudo reconectar a la sala.');
+          setLoading(false);
+        }
+      }
+    );
+  }, [disconnectSocket, ensureSocket, handleAck, updateSnapshot]);
 
   const connectAndCreate = useCallback(
     ({ playerName, targetScore }: CreateOnlineRoomInput) => {
@@ -157,6 +267,7 @@ export function useOnlineGame(): UseOnlineGameResult {
         return;
       }
 
+      reconnectingRef.current = false;
       setError(null);
       setLoading(true);
       const socket = ensureSocket();
@@ -181,6 +292,7 @@ export function useOnlineGame(): UseOnlineGameResult {
         return;
       }
 
+      reconnectingRef.current = false;
       setError(null);
       setLoading(true);
       const socket = ensureSocket();
@@ -224,12 +336,13 @@ export function useOnlineGame(): UseOnlineGameResult {
   }, [emitRoomGameEvent]);
 
   const leaveRoom = useCallback(() => {
+    reconnectingRef.current = false;
     clearOnlineSession();
     disconnectSocket();
-    setSnapshot(null);
+    updateSnapshot(null);
     setError(null);
     setLoading(false);
-  }, [disconnectSocket]);
+  }, [disconnectSocket, updateSnapshot]);
 
   return {
     snapshot,

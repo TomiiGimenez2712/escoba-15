@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { BotDifficulty, RoomSnapshot, TargetScore } from '../../shared/types';
 import type { PlayerCount } from '../hooks/useLocalGame';
 import type { CreateOnlineRoomInput, JoinOnlineRoomInput } from '../hooks/useOnlineGame';
@@ -69,6 +69,12 @@ export function HomeScreen({
   const baseId = useId();
   const [initialCode] = useState<string>(() => getInitialRoomCode());
   const [mode, setMode] = useState<HomeMode>(() => (initialCode ? 'online' : 'ai'));
+
+  useEffect(() => {
+    if (onlineError) {
+      setMode('online');
+    }
+  }, [onlineError]);
 
   const aiTabId = `${baseId}-tab-ai`;
   const onlineTabId = `${baseId}-tab-online`;
