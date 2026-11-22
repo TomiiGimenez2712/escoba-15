@@ -1266,3 +1266,47 @@ describe('App — partida online sincronizada, reconexión y revancha (H6)', () 
     expect(screen.getByRole('button', { name: /unirse a sala/i })).toBeEnabled();
   });
 });
+
+describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('abre el modal de reglas rápidas desde "Reglas" con reglas oficiales y lo cierra con "Cerrar" o Escape', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /jugar/i }));
+
+    const rulesButton = screen.getByRole('button', { name: /reglas/i });
+    await user.click(rulesButton);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveTextContent(/1\s*(al?|–|-)\s*7/i);
+    expect(dialog).toHaveTextContent(/sota\s*\(10\).*\b8\b/i);
+    expect(dialog).toHaveTextContent(/caballo\s*\(11\).*\b9\b/i);
+    expect(dialog).toHaveTextContent(/rey\s*\(12\).*\b10\b/i);
+    expect(dialog).toHaveTextContent(/escoba.*\+1/i);
+    expect(dialog).toHaveTextContent(/escoba de mano/i);
+    expect(dialog).toHaveTextContent(/\b15\b/);
+    expect(dialog).toHaveTextContent(/\b30\b/);
+    expect(dialog).toHaveTextContent(/escobas/i);
+    expect(dialog).toHaveTextContent(/7 de oros/i);
+    expect(dialog).toHaveTextContent(/sietes/i);
+    expect(within(dialog).getAllByText(/\boros\b/i).length).toBeGreaterThanOrEqual(2);
+    expect(dialog).toHaveTextContent(/cartas/i);
+    expect(dialog).toHaveTextContent(/empate.*\b0\b/i);
+    expect(dialog).toHaveTextContent(/15.*21/);
+
+    await user.click(within(dialog).getByRole('button', { name: /cerrar/i }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    await user.click(rulesButton);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
