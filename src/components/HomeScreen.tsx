@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import type { BotDifficulty, RoomSnapshot, TargetScore } from '../../shared/types';
 import type { PlayerCount } from '../hooks/useLocalGame';
 import type { CreateOnlineRoomInput, JoinOnlineRoomInput } from '../hooks/useOnlineGame';
+import { unlockAudio, playDealSound } from '../utils/sound';
 import { OnlineLobby } from './OnlineLobby';
 import { RadioSelectorGroup, type RadioOption } from './RadioSelectorGroup';
 
@@ -147,7 +148,11 @@ export function HomeScreen({
             <button
               type="button"
               className="play-button"
-              onClick={onStart}
+              onClick={() => {
+                unlockAudio();
+                playDealSound();
+                onStart();
+              }}
             >
               Jugar
             </button>

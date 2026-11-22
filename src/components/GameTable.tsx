@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { findCaptureCombinations } from '../../shared/engine';
 import type {
   Card,
   GameState,
@@ -9,12 +8,18 @@ import type {
 } from '../../shared/types';
 import {
   playCaptureSound,
+  playCardSelectSound,
+  playDealSound,
   playDiscardSound,
   playEscobaSound,
   playVictorySound,
+  setBackgroundMusicMuted,
+  stopBackgroundMusic,
+  unlockAudio,
 } from '../utils/sound';
 import { RulesModal } from './RulesModal';
 import { SpanishCard } from './SpanishCard';
+import { TrucoScore } from './TrucoScore';
 
 export interface GameTableProps {
   game: GameState | PlayerGameView;
@@ -111,27 +116,61 @@ export function GameTable({
   );
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [selectedComboIndex, setSelectedComboIndex] = useState(0);
+  const [selectedTableCardIds, setSelectedTableCardIds] = useState<string[]>([]);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [showFigureValues, setShowFigureValues] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(true);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   const soundEnabledRef = useRef(soundEnabled);
   const lastActionKeyRef = useRef<string | null>(null);
   const lastHistoryKeyRef = useRef<string | null>(null);
   const prevPhaseRef = useRef(game.phase);
+  const prevRoundRef = useRef(game.round);
 
   useEffect(() => {
     soundEnabledRef.current = soundEnabled;
   }, [soundEnabled]);
 
+  useEffect(() => {
+    setBackgroundMusicMuted(!musicEnabled);
+    if (!musicEnabled) {
+      return undefined;
+    }
+
+    const handleFirstGesture = () => {
+      unlockAudio();
+    };
+
+    window.addEventListener('pointerdown', handleFirstGesture, { once: true });
+    window.addEventListener('keydown', handleFirstGesture, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+    };
+  }, [musicEnabled]);
+
+  useEffect(() => {
+    return () => {
+      stopBackgroundMusic();
+    };
+  }, []);
+
   const handSignature = localHand.map((card) => card.id).join(',');
 
   useEffect(() => {
     setSelectedCardId(null);
-    setSelectedComboIndex(0);
-  }, [handSignature, isLocalTurn]);
+    setSelectedTableCardIds([]);
+  }, [handSignature, isLocalTurn, game.round]);
+
+  useEffect(() => {
+    if (prevRoundRef.current !== game.round) {
+      playDealSound({ muted: !soundEnabledRef.current });
+      prevRoundRef.current = game.round;
+    }
+  }, [game.round]);
 
   const lastActionKey = getLastActionKey(game.lastAction);
 
@@ -199,42 +238,65 @@ export function GameTable({
   const selectedCard = isLocalTurn
     ? (localHand.find((card) => card.id === selectedCardId) ?? null)
     : null;
-  const combinations = selectedCard ? findCaptureCombinations(selectedCard, game.table) : [];
-  const activeComboIndex = selectedComboIndex < combinations.length ? selectedComboIndex : 0;
-  const activeCombination = combinations[activeComboIndex] ?? null;
-  const highlightedCardIds = new Set(
-    activeCombination ? activeCombination.map((card) => card.id) : [],
-  );
+  const tableIdSet = new Set(game.table.map((card) => card.id));
+  const activeTableIds = isLocalTurn
+    ? selectedTableCardIds.filter((cardId) => tableIdSet.has(cardId))
+    : [];
+  const selectedTableIdSet = new Set(activeTableIds);
+  const selectedTableCards = game.table.filter((card) => selectedTableIdSet.has(card.id));
+  const selectedTableSum = selectedTableCards.reduce((sum, card) => sum + card.value, 0);
+  const totalSelectedSum = (selectedCard?.value ?? 0) + selectedTableSum;
+  const canCapture = Boolean(selectedCard && selectedTableCards.length > 0 && totalSelectedSum === 15);
 
   const clearSelection = () => {
     setSelectedCardId(null);
-    setSelectedComboIndex(0);
+    setSelectedTableCardIds([]);
   };
 
   const handleSelectCard = (cardId: string) => {
     if (!isLocalTurn) {
       return;
     }
-    setSelectedCardId((prev) => (prev === cardId ? null : cardId));
-    setSelectedComboIndex(0);
+    unlockAudio();
+    playCardSelectSound({ muted: !soundEnabledRef.current });
+    setSelectedCardId((prev) => {
+      if (prev === cardId) {
+        setSelectedTableCardIds([]);
+        return null;
+      }
+      return cardId;
+    });
+  };
+
+  const handleToggleTableCard = (cardId: string) => {
+    if (!isLocalTurn) {
+      return;
+    }
+    unlockAudio();
+    playCardSelectSound({ muted: !soundEnabledRef.current });
+    setSelectedTableCardIds((prev) =>
+      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId],
+    );
   };
 
   const handleDiscard = () => {
     if (!selectedCard || !onPlayAction || !isLocalTurn) {
       return;
     }
+    unlockAudio();
     onPlayAction({ type: 'discard', cardId: selectedCard.id });
     clearSelection();
   };
 
   const handleCapture = () => {
-    if (!selectedCard || !activeCombination || !onPlayAction || !isLocalTurn) {
+    if (!selectedCard || !canCapture || !onPlayAction || !isLocalTurn) {
       return;
     }
+    unlockAudio();
     onPlayAction({
       type: 'capture',
       cardId: selectedCard.id,
-      tableCardIds: activeCombination.map((card) => card.id),
+      tableCardIds: selectedTableCards.map((card) => card.id),
     });
     clearSelection();
   };
@@ -259,9 +321,23 @@ export function GameTable({
             type="button"
             className={`topbar-button ${soundEnabled ? 'topbar-button--active' : ''}`.trim()}
             aria-pressed={soundEnabled}
-            onClick={() => setSoundEnabled((prev) => !prev)}
+            onClick={() => {
+              unlockAudio();
+              setSoundEnabled((prev) => !prev);
+            }}
           >
             Sonido
+          </button>
+          <button
+            type="button"
+            className={`topbar-button ${musicEnabled ? 'topbar-button--active' : ''}`.trim()}
+            aria-pressed={musicEnabled}
+            onClick={() => {
+              unlockAudio();
+              setMusicEnabled((prev) => !prev);
+            }}
+          >
+            Música
           </button>
           <button
             type="button"
@@ -374,48 +450,59 @@ export function GameTable({
                 <SpanishCard
                   key={card.id}
                   card={card}
-                  highlighted={highlightedCardIds.has(card.id)}
+                  selected={selectedTableIdSet.has(card.id)}
+                  disabled={!isPlaying || (onPlayAction ? !isLocalTurn : false)}
                   showFigureValues={showFigureValues}
+                  onClick={onPlayAction ? () => handleToggleTableCard(card.id) : undefined}
                 />
               ))}
             </div>
           </section>
         </div>
 
-        {selectedCard && (
+        {isLocalTurn && onPlayAction && (selectedCard || selectedTableCards.length > 0) && (
           <div className="action-bar">
-            {combinations.length > 1 && (
-              <div className="combo-chips" role="group" aria-label="Combinaciones posibles">
-                {combinations.map((combo, index) => (
-                  <button
-                    key={combo.map((card) => card.id).join('+')}
-                    type="button"
-                    className={`combo-chip ${index === activeComboIndex ? 'combo-chip--active' : ''}`.trim()}
-                    aria-pressed={index === activeComboIndex}
-                    onClick={() => setSelectedComboIndex(index)}
-                  >
-                    {combo.map(formatCardLabel).join(' + ')}
-                  </button>
-                ))}
-              </div>
+            {selectedCard && selectedTableCards.length > 0 ? (
+              <p className="selection-sum">
+                {`Suma elegida: ${totalSelectedSum} / 15`}
+              </p>
+            ) : selectedCard ? (
+              <p className="selection-hint">
+                Tocá cartas de la mesa para sumar 15 o tirá tu carta.
+              </p>
+            ) : (
+              <p className="selection-hint">
+                Elegí una carta de tu mano para completar 15.
+              </p>
             )}
             <div className="action-buttons">
-              {activeCombination && (
+              {selectedCard && selectedTableCards.length > 0 && (
                 <button
                   type="button"
                   className="action-button action-button--capture"
                   onClick={handleCapture}
+                  disabled={!canCapture}
                 >
                   Levantar (15)
                 </button>
               )}
-              <button
-                type="button"
-                className="action-button action-button--discard"
-                onClick={handleDiscard}
-              >
-                Tirar a la mesa
-              </button>
+              {selectedCard ? (
+                <button
+                  type="button"
+                  className="action-button action-button--discard"
+                  onClick={handleDiscard}
+                >
+                  Tirar a la mesa
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="action-button action-button--discard"
+                  onClick={() => setSelectedTableCardIds([])}
+                >
+                  Limpiar mesa
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -487,6 +574,9 @@ export function GameTable({
                       </>
                     )}
                   </div>{' '}
+                  <div className="scoreboard-item__truco">
+                    <TrucoScore score={player.score} />
+                  </div>
                   <div className="scoreboard-item__stats">
                     <span className="scoreboard-item__score">{`${player.score} pts`}</span>{' '}
                     <span>{escobasLabel}</span>{' '}

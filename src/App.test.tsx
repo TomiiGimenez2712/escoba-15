@@ -266,37 +266,49 @@ describe('App — flujo inicial y mesa de juego', () => {
 
     const tableZone = screen.getByRole('region', { name: /mesa/i });
 
-    // 0 combinaciones: 3 de oros contra {12 copas, 4 oros, 6 copas, 7 espadas}
+    // 0 selecciones en mesa -> no aparece "Levantar", solo "Tirar a la mesa" y ninguna sugerencia resaltada
     const card3 = within(playerHand).getByRole('button', { name: '3 de oros' });
     await user.click(card3);
     expect(card3).toHaveAttribute('data-selected', 'true');
     expect(screen.queryByRole('button', { name: /levantar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: /combinaciones posibles/i })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /tirar a la mesa/i }));
     expect(onPlayAction).toHaveBeenCalledWith({ type: 'discard', cardId: 'oros-3' });
 
-    // 1 combinación: 11 de oros (9) + 6 de copas (6) = 15
-    await user.click(within(playerHand).getByRole('button', { name: '11 de oros' }));
-    expect(within(tableZone).getByLabelText('6 de copas')).toHaveAttribute('data-highlighted', 'true');
-    expect(within(tableZone).getByLabelText('12 de copas')).not.toHaveAttribute('data-highlighted', 'true');
-    expect(screen.getByRole('button', { name: /levantar \(15\)/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /tirar a la mesa/i })).toBeInTheDocument();
-
-    // >1 combinaciones: 5 de oros con [12 copas] y [4 oros, 6 copas]
+    // Caso sin sugerencias: teniendo 5 de oros con [12 copas] y [4 oros, 6 copas] en la mesa, no resalta ni sugiere combos
     await user.click(within(playerHand).getByRole('button', { name: '5 de oros' }));
-    expect(within(tableZone).getByLabelText('12 de copas')).toHaveAttribute('data-highlighted', 'true');
-    expect(within(tableZone).getByLabelText('4 de oros')).not.toHaveAttribute('data-highlighted', 'true');
+    expect(screen.queryByRole('group', { name: /combinaciones posibles/i })).not.toBeInTheDocument();
+    for (const tableCard of within(tableZone).getAllByRole('button')) {
+      expect(tableCard).not.toHaveAttribute('data-highlighted', 'true');
+    }
+    expect(screen.queryByRole('button', { name: /levantar/i })).not.toBeInTheDocument();
 
-    expect(screen.getByRole('button', { name: /12 de copas/i })).toBeInTheDocument();
-    const secondComboChip = screen.getByRole('button', { name: /4 de oros.*6 de copas/i });
-    await user.click(secondComboChip);
+    // Selección manual de 12 de copas (5 + 10 = 15) -> habilita "Levantar (15)" y ejecuta captura directa
+    const twelveCopasBtn = within(tableZone).getByRole('button', { name: '12 de copas' });
+    await user.click(twelveCopasBtn);
+    expect(twelveCopasBtn).toHaveAttribute('data-selected', 'true');
+    expect(screen.getByText(/suma elegida:\s*15\s*\/\s*15/i)).toBeInTheDocument();
+    const captureBtn = screen.getByRole('button', { name: /levantar \(15\)/i });
+    expect(captureBtn).toBeEnabled();
 
-    expect(within(tableZone).getByLabelText('12 de copas')).not.toHaveAttribute('data-highlighted', 'true');
-    expect(within(tableZone).getByLabelText('4 de oros')).toHaveAttribute('data-highlighted', 'true');
-    expect(within(tableZone).getByLabelText('6 de copas')).toHaveAttribute('data-highlighted', 'true');
-
-    await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
+    await user.click(captureBtn);
     expect(onPlayAction).toHaveBeenCalledWith({
+      type: 'capture',
+      cardId: 'oros-5',
+      tableCardIds: ['copas-12'],
+    });
+
+    // Selección manual de suma inválida y luego múltiple (5 + 4 = 9 deshabilita, + 6 = 15 habilita)
+    await user.click(within(playerHand).getByRole('button', { name: '5 de oros' }));
+    await user.click(within(tableZone).getByRole('button', { name: '4 de oros' }));
+    expect(screen.getByText(/suma elegida:\s*9\s*\/\s*15/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /levantar \(15\)/i })).toBeDisabled();
+
+    await user.click(within(tableZone).getByRole('button', { name: '6 de copas' }));
+    expect(screen.getByText(/suma elegida:\s*15\s*\/\s*15/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
+    expect(onPlayAction).toHaveBeenLastCalledWith({
       type: 'capture',
       cardId: 'oros-5',
       tableCardIds: ['oros-4', 'copas-6'],
@@ -399,6 +411,7 @@ describe('App — flujo inicial y mesa de juego', () => {
     const { unmount } = render(<App initialGame={tiebreakerInitialGame} />);
 
     await user.click(within(screen.getByRole('region', { name: /tu mano/i })).getByRole('button', { name: '5 de oros' }));
+    await user.click(within(screen.getByRole('region', { name: /mesa/i })).getByRole('button', { name: '12 de copas' }));
     await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
 
     const tieDialog = screen.getByRole('dialog');
@@ -465,6 +478,7 @@ describe('App — flujo inicial y mesa de juego', () => {
     render(<App initialGame={gameOverInitialGame} />);
 
     await user.click(within(screen.getByRole('region', { name: /tu mano/i })).getByRole('button', { name: '5 de oros' }));
+    await user.click(within(screen.getByRole('region', { name: /mesa/i })).getByRole('button', { name: '12 de copas' }));
     await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
 
     const gameOverDialog = screen.getByRole('dialog');
@@ -666,6 +680,7 @@ describe('App — flujo inicial y mesa de juego', () => {
     render(<App initialGame={teamGameOverInitial} />);
 
     await user.click(within(screen.getByRole('region', { name: /tu mano/i })).getByRole('button', { name: '5 de oros' }));
+    await user.click(within(screen.getByRole('region', { name: /mesa/i })).getByRole('button', { name: '12 de copas' }));
     await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
 
     const dialog = screen.getByRole('dialog');
@@ -1384,6 +1399,7 @@ describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
     expect(screen.queryByText('= 10')).not.toBeInTheDocument();
 
     await user.click(card10);
+    await user.click(within(tableZone).getByRole('button', { name: '7 de copas' }));
     await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
     expect(captureSpy).toHaveBeenCalledWith({ muted: false });
 
@@ -1480,7 +1496,9 @@ describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
     expect(screen.getAllByText(/turno/i)).toHaveLength(1);
 
     const playerHand = screen.getByRole('region', { name: /tu mano/i });
+    const tableZone = screen.getByRole('region', { name: /mesa/i });
     await user.click(within(playerHand).getByRole('button', { name: '5 de oros' }));
+    await user.click(within(tableZone).getByRole('button', { name: '12 de copas' }));
     await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
 
     const updatedTuScore = within(scoreboard)
@@ -1539,5 +1557,86 @@ describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
     const resetHistoryRegion = screen.getByRole('region', { name: /historial de jugadas/i });
     expect(within(resetHistoryRegion).queryAllByRole('listitem')).toHaveLength(0);
     expect(resetHistoryRegion).not.toHaveTextContent(/capturó|descartó/i);
+  });
+
+  it('muestra puntos con palitos estilo Truco (fósforos de a 5), reproduce sonidos de toque y permite activar/silenciar "Música"', async () => {
+    const user = userEvent.setup();
+    const selectSpy = vi.spyOn(soundUtils, 'playCardSelectSound');
+    const musicMutedSpy = vi.spyOn(soundUtils, 'setBackgroundMusicMuted');
+    const stopMusicSpy = vi.spyOn(soundUtils, 'stopBackgroundMusic');
+
+    const trucoGame: GameState = {
+      players: [
+        {
+          id: 'player-1',
+          name: 'Tú',
+          isBot: false,
+          hand: pickCards(['oros-5']),
+          captured: pickCards(['oros-7', 'copas-7', 'espadas-7']),
+          escobas: 1,
+          score: 17,
+        },
+        {
+          id: 'bot-1',
+          name: 'Bot',
+          isBot: true,
+          hand: [],
+          captured: [],
+          escobas: 0,
+          score: 4,
+        },
+      ],
+      table: pickCards(['copas-12']),
+      deck: [],
+      dealerIndex: 1,
+      currentPlayerIndex: 0,
+      lastCapturerId: null,
+      lastAction: null,
+      targetScore: 21,
+      round: 4,
+      escobaDeMano: 0,
+      phase: 'playing',
+      roundSummary: null,
+      winnerId: null,
+      winnerTeamId: null,
+      isTiebreaker: false,
+    };
+
+    const { unmount } = render(<App initialGame={trucoGame} />);
+
+    expect(musicMutedSpy).toHaveBeenCalledWith(false);
+
+    const musicButton = screen.getByRole('button', { name: /música/i });
+    expect(musicButton).toHaveAttribute('aria-pressed', 'true');
+
+    const scoreboard = screen.getByRole('region', { name: /marcador/i });
+    const tuPalitos = within(scoreboard).getByRole('img', { name: '17 puntos en palitos' });
+    const tuStickBoxes = Array.from(tuPalitos.querySelectorAll('[data-sticks]')).map((el) =>
+      Number(el.getAttribute('data-sticks')),
+    );
+    expect(tuStickBoxes).toEqual([5, 5, 5, 2]);
+    expect(tuPalitos.querySelectorAll('.truco-score__divider')).toHaveLength(1);
+
+    const botPalitos = within(scoreboard).getByRole('img', { name: '4 puntos en palitos' });
+    const botStickBoxes = Array.from(botPalitos.querySelectorAll('[data-sticks]')).map((el) =>
+      Number(el.getAttribute('data-sticks')),
+    );
+    expect(botStickBoxes).toEqual([4]);
+
+    await user.click(musicButton);
+    expect(musicButton).toHaveAttribute('aria-pressed', 'false');
+    expect(musicMutedSpy).toHaveBeenCalledWith(true);
+
+    await user.click(within(screen.getByRole('region', { name: /tu mano/i })).getByRole('button', { name: '5 de oros' }));
+    await user.click(within(screen.getByRole('region', { name: /mesa/i })).getByRole('button', { name: '12 de copas' }));
+    expect(selectSpy).toHaveBeenCalledWith({ muted: false });
+
+    await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('img', { name: '23 puntos en palitos' })).toBeInTheDocument();
+
+    unmount();
+    expect(stopMusicSpy).toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import type { RoomSnapshot, TargetScore } from '../../shared/types';
 import type { CreateOnlineRoomInput, JoinOnlineRoomInput } from '../hooks/useOnlineGame';
+import { unlockAudio } from '../utils/sound';
 import { RadioSelectorGroup, type RadioOption } from './RadioSelectorGroup';
 
 export interface OnlineLobbyProps {
@@ -63,11 +64,13 @@ export function OnlineLobby({
 
   const handleCreateSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    unlockAudio();
     onCreateRoom({ playerName, targetScore });
   };
 
   const handleJoinSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    unlockAudio();
     onJoinRoom({ code: roomCode, playerName });
   };
 

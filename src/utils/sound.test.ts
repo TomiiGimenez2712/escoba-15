@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const SOUND_FN_NAMES = [
+  'playCardSelectSound',
+  'playDealSound',
   'playDiscardSound',
   'playCaptureSound',
   'playEscobaSound',
@@ -155,5 +157,35 @@ describe('utils/sound', () => {
     }
 
     expect(AudioContextMock).toHaveBeenCalled();
+  });
+
+  it('inicia, programa notas criollas y detiene la música ambiental con degradación segura', async () => {
+    const soundFallback = await import('./sound');
+    expect(() => {
+      soundFallback.unlockAudio();
+      soundFallback.startBackgroundMusic();
+      soundFallback.setBackgroundMusicMuted(false);
+      soundFallback.setBackgroundMusicMuted(true);
+      soundFallback.stopBackgroundMusic();
+    }).not.toThrow();
+    expect(soundFallback.isBackgroundMusicPlaying()).toBe(false);
+
+    vi.resetModules();
+    const { AudioContextMock, oscillators } = createMockAudioContext();
+    vi.stubGlobal('AudioContext', AudioContextMock);
+
+    const sound = await import('./sound');
+
+    sound.startBackgroundMusic({ muted: true });
+    expect(AudioContextMock).not.toHaveBeenCalled();
+    expect(sound.isBackgroundMusicPlaying()).toBe(false);
+
+    sound.startBackgroundMusic({ muted: false });
+    expect(AudioContextMock).toHaveBeenCalledTimes(1);
+    expect(sound.isBackgroundMusicPlaying()).toBe(true);
+    expect(oscillators.length).toBeGreaterThanOrEqual(2);
+
+    sound.setBackgroundMusicMuted(true);
+    expect(sound.isBackgroundMusicPlaying()).toBe(false);
   });
 });

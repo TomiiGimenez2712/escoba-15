@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { GameState, ParticipantRoundScore, PlayerGameView } from '../../shared/types';
+import { TrucoScore } from './TrucoScore';
 
 export interface RoundSummaryModalProps {
   game: GameState | PlayerGameView;
@@ -104,9 +105,21 @@ export function RoundSummaryModal({ game, onNextRound, onRematch }: RoundSummary
             {SCORE_ROWS.map((row) => (
               <tr key={row.key} className={row.className}>
                 <th scope="row">{row.label}</th>
-                {summary.participants.map((participant) => (
-                  <td key={participant.participantId}>{row.getValue(participant)}</td>
-                ))}
+                {summary.participants.map((participant) => {
+                  const value = row.getValue(participant);
+                  return (
+                    <td key={participant.participantId}>
+                      {row.key === 'totalScore' ? (
+                        <div className="summary-score-cell">
+                          <span>{value}</span>
+                          <TrucoScore score={value} compact />
+                        </div>
+                      ) : (
+                        value
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
