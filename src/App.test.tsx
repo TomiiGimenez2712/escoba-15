@@ -1402,4 +1402,142 @@ describe('App — pulido UI, reglas rápidas, valores y feedback (H7)', () => {
     expect(screen.getByRole('heading', { name: /escoba del 15/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /jugar/i })).toBeInTheDocument();
   });
+
+  it('muestra barra meta, marcador detallado sin tablas, historial de jugadas en orden y lo resetea al jugar revancha', async () => {
+    vi.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    const initialGame: GameState = {
+      players: [
+        {
+          id: 'player-1',
+          name: 'Tú',
+          isBot: false,
+          hand: pickCards(['oros-5', 'espadas-1']),
+          captured: pickCards([
+            'oros-7',
+            'copas-7',
+            'espadas-7',
+            'oros-1',
+            'oros-2',
+            'oros-3',
+            'oros-4',
+            'oros-6',
+          ]),
+          escobas: 1,
+          score: 13,
+        },
+        {
+          id: 'bot-1',
+          name: 'Bot',
+          isBot: true,
+          hand: pickCards(['bastos-1', 'bastos-2']),
+          captured: [],
+          escobas: 0,
+          score: 2,
+        },
+      ],
+      table: pickCards(['copas-12']),
+      deck: [],
+      dealerIndex: 1,
+      currentPlayerIndex: 0,
+      lastCapturerId: null,
+      lastAction: null,
+      targetScore: 15,
+      round: 2,
+      escobaDeMano: 0,
+      phase: 'playing',
+      roundSummary: null,
+      winnerId: null,
+      winnerTeamId: null,
+      isTiebreaker: false,
+    };
+
+    render(<App initialGame={initialGame} />);
+
+    expect(screen.getByText(/ronda\s*2/i)).toBeInTheDocument();
+    expect(screen.getByText(/meta\s*15/i)).toBeInTheDocument();
+
+    const scoreboard = screen.getByRole('region', { name: /marcador/i });
+    expect(within(scoreboard).queryByRole('table')).toBeNull();
+    expect(scoreboard).toHaveTextContent(/2 jugadores/i);
+    expect(scoreboard).toHaveTextContent(/\bia\b/i);
+
+    const initialScoreItems = within(scoreboard).getAllByRole('listitem');
+    const tuInitialScore = initialScoreItems.find((item) => /\btú\b/i.test(item.textContent ?? ''));
+    const botInitialScore = initialScoreItems.find((item) => /\bbot\b/i.test(item.textContent ?? ''));
+    expect(tuInitialScore).toBeDefined();
+    expect(botInitialScore).toBeDefined();
+    expect(tuInitialScore).toHaveTextContent(/(?:\b13\s*pts?|pts?[:\s]*13\b|\b13\s*puntos?\b|\b13\b)/i);
+    expect(tuInitialScore).toHaveTextContent(/(?:\b1\s*escobas?|escobas?[:\s]*1\b)/i);
+    expect(tuInitialScore).toHaveTextContent(/(?:\b8\s*cartas?|cartas?[:\s]*8\b)/i);
+    expect(botInitialScore).toHaveTextContent(/(?:\b2\s*pts?|pts?[:\s]*2\b|\b2\s*puntos?\b|\b2\b)/i);
+    expect(botInitialScore).toHaveTextContent(/(?:\b0\s*escobas?|escobas?[:\s]*0\b)/i);
+    expect(botInitialScore).toHaveTextContent(/(?:\b0\s*cartas?|cartas?[:\s]*0\b)/i);
+
+    const historyRegion = screen.getByRole('region', { name: /historial de jugadas/i });
+    expect(within(historyRegion).queryByRole('listitem')).toBeNull();
+    expect(screen.getAllByText(/turno/i)).toHaveLength(1);
+
+    const playerHand = screen.getByRole('region', { name: /tu mano/i });
+    await user.click(within(playerHand).getByRole('button', { name: '5 de oros' }));
+    await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
+
+    const updatedTuScore = within(scoreboard)
+      .getAllByRole('listitem')
+      .find((item) => /\btú\b/i.test(item.textContent ?? ''));
+    expect(updatedTuScore).toHaveTextContent(/(?:\b2\s*escobas?|escobas?[:\s]*2\b)/i);
+    expect(updatedTuScore).toHaveTextContent(/(?:\b10\s*cartas?|cartas?[:\s]*10\b)/i);
+
+    const historyAfterMove1 = within(historyRegion).getAllByRole('listitem');
+    expect(historyAfterMove1).toHaveLength(1);
+    expect(historyAfterMove1[0]).toHaveTextContent(/tú/i);
+    expect(historyAfterMove1[0]).toHaveTextContent(/capturó/i);
+    expect(historyAfterMove1[0]).toHaveTextContent(/5\s+oros/i);
+    expect(historyAfterMove1[0]).toHaveTextContent(/12\s+copas/i);
+    expect(historyAfterMove1[0]).toHaveTextContent(/escoba/i);
+    expect(historyRegion).not.toHaveTextContent(/levantó|5 de oros|¡escoba!|turno/i);
+    expect(screen.getAllByText(/5 de oros/i)).toHaveLength(1);
+    expect(screen.getAllByText(/turno/i)).toHaveLength(1);
+
+    await act(async () => {
+      vi.advanceTimersByTime(650);
+    });
+
+    const historyAfterMove2 = within(historyRegion).getAllByRole('listitem');
+    expect(historyAfterMove2).toHaveLength(2);
+    expect(historyAfterMove2[1]).toHaveTextContent(/bot/i);
+    expect(historyAfterMove2[1]).toHaveTextContent(/descartó/i);
+    expect(historyAfterMove2[1]).toHaveTextContent(/1\s+bastos/i);
+
+    await user.click(within(playerHand).getByRole('button', { name: '1 de espadas' }));
+    await user.click(screen.getByRole('button', { name: /tirar a la mesa/i }));
+
+    const historyAfterMove3 = within(historyRegion).getAllByRole('listitem');
+    expect(historyAfterMove3).toHaveLength(3);
+    expect(historyAfterMove3[2]).toHaveTextContent(/tú/i);
+    expect(historyAfterMove3[2]).toHaveTextContent(/descartó/i);
+    expect(historyAfterMove3[2]).toHaveTextContent(/1\s+espadas/i);
+
+    await act(async () => {
+      vi.advanceTimersByTime(650);
+    });
+
+    const historyAfterMove4 = within(historyRegion).getAllByRole('listitem');
+    expect(historyAfterMove4).toHaveLength(4);
+    expect(historyAfterMove4[3]).toHaveTextContent(/bot/i);
+    expect(historyAfterMove4[3]).toHaveTextContent(/descartó/i);
+    expect(historyAfterMove4[3]).toHaveTextContent(/2\s+bastos/i);
+
+    const gameOverModal = screen.getByRole('dialog');
+    await user.click(within(gameOverModal).getByRole('button', { name: /jugar revancha/i }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByText(/ronda\s*1/i)).toBeInTheDocument();
+    expect(screen.queryByText(/levantó/i)).toBeNull();
+
+    const resetHistoryRegion = screen.getByRole('region', { name: /historial de jugadas/i });
+    expect(within(resetHistoryRegion).queryAllByRole('listitem')).toHaveLength(0);
+    expect(resetHistoryRegion).not.toHaveTextContent(/capturó|descartó/i);
+  });
 });
