@@ -22,11 +22,32 @@ function formatLastAction(lastAction: LastAction): string {
   return `${lastAction.playerName} tiró ${played}`;
 }
 
+function getTeamName(teamId: 0 | 1): string {
+  return teamId === 0 ? 'Equipo A' : 'Equipo B';
+}
+
+function getOpponentTeamMeta(
+  opponentTeamId: 0 | 1 | undefined,
+  localTeamId: 0 | 1 | undefined,
+): { label: string; isPartner: boolean } | null {
+  if (opponentTeamId === undefined || localTeamId === undefined) {
+    return null;
+  }
+  const isPartner = opponentTeamId === localTeamId;
+  const teamName = getTeamName(opponentTeamId);
+  return {
+    label: isPartner ? `${teamName} · Pareja` : teamName,
+    isPartner,
+  };
+}
+
 export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps) {
   const resolvedLocalPlayerId = localPlayerId ?? game.players[0]?.id;
   const localPlayer =
     game.players.find((player) => player.id === resolvedLocalPlayerId) ?? game.players[0];
   const opponents = game.players.filter((player) => player.id !== localPlayer?.id);
+  const localTeamLabel =
+    localPlayer?.teamId !== undefined ? getTeamName(localPlayer.teamId) : null;
   const currentPlayer = game.players[game.currentPlayerIndex];
   const isPlaying = game.phase === 'playing';
   const isLocalTurn = Boolean(
@@ -98,14 +119,37 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
         aria-label="Rival"
       >
         <span className="zone-label">Rival</span>
-        <div className="card-row card-row--rival">
-          {opponents.map((opponent) => (
-            <div key={opponent.id} className="opponent-hand">
-              {opponent.hand.map((card) => (
-                <SpanishCard key={card.id} faceDown compact />
-              ))}
-            </div>
-          ))}
+        <div
+          className={`opponent-seats ${opponents.length > 1 ? 'opponent-seats--multi' : ''}`.trim()}
+        >
+          {opponents.map((opponent) => {
+            const teamMeta = getOpponentTeamMeta(opponent.teamId, localPlayer?.teamId);
+
+            return (
+              <div
+                key={opponent.id}
+                className={`opponent-seat ${teamMeta?.isPartner ? 'opponent-seat--partner' : ''}`.trim()}
+              >
+                <div className="opponent-seat__header">
+                  <span className="opponent-seat__name">{opponent.name}</span>
+                  {teamMeta && (
+                    <span
+                      className={`team-badge ${
+                        teamMeta.isPartner ? 'team-badge--partner' : 'team-badge--rival'
+                      }`}
+                    >
+                      {teamMeta.label}
+                    </span>
+                  )}
+                </div>
+                <div className="opponent-hand">
+                  {opponent.hand.map((card) => (
+                    <SpanishCard key={card.id} faceDown compact />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -206,7 +250,12 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
         role="region"
         aria-label="Tu mano"
       >
-        <span className="zone-label">Tu mano</span>
+        <div className="player-zone-header">
+          <span className="zone-label">Tu mano</span>
+          {localTeamLabel && (
+            <span className="team-badge team-badge--partner">{localTeamLabel}</span>
+          )}
+        </div>
         <div className="card-row card-row--player">
           {localPlayer?.hand.map((card) => (
             <SpanishCard
