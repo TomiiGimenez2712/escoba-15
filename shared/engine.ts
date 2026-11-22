@@ -83,41 +83,43 @@ function resolveOptions(options: CreateGameOptions): {
     throw new Error(`Invalid targetScore: ${String(targetScore)}`);
   }
 
-  if (options.deck !== undefined) {
-    validateDeck(options.deck);
-  }
-
   return { dealerIndex, targetScore };
 }
 
-/** Crea el estado inicial de una partida repartiendo 3 cartas por jugador y 4 a la mesa. */
-export function createGame(options: CreateGameOptions): GameState {
-  const { dealerIndex, targetScore } = resolveOptions(options);
-  const sourceDeck = options.deck ? [...options.deck] : shuffleDeck(createDeck());
-  const isTeamGame = options.players.length === 4;
+interface DealRoundParams {
+  players: readonly Player[];
+  dealerIndex: number;
+  targetScore: TargetScore;
+  round: number;
+  isTiebreaker: boolean;
+  deck?: readonly Card[];
+}
 
-  const players: Player[] = options.players.map((config, index) => {
+/** Reparte 3 cartas por jugador y 4 a la mesa, evalúa Escoba de mano y arma el estado de ronda. */
+function dealRound(params: DealRoundParams): GameState {
+  if (params.deck !== undefined) {
+    validateDeck(params.deck);
+  }
+
+  const sourceDeck = params.deck ? [...params.deck] : shuffleDeck(createDeck());
+  const players: Player[] = params.players.map((player, index) => {
     const start = index * CARDS_PER_HAND;
     return {
-      id: config.id,
-      name: config.name,
-      isBot: config.isBot ?? false,
+      ...player,
       hand: sourceDeck.slice(start, start + CARDS_PER_HAND),
       captured: [],
       escobas: 0,
-      score: 0,
-      ...(isTeamGame ? { teamId: (index % 2) as 0 | 1 } : {}),
     };
   });
 
-  const tableStart = options.players.length * CARDS_PER_HAND;
+  const tableStart = players.length * CARDS_PER_HAND;
   const initialTable = sourceDeck.slice(tableStart, tableStart + TABLE_CARD_COUNT);
   const deck = sourceDeck.slice(tableStart + TABLE_CARD_COUNT);
 
   const escobaDeMano = detectEscobaDeMano(initialTable);
 
   if (escobaDeMano > 0) {
-    const dealer = players[dealerIndex];
+    const dealer = players[params.dealerIndex];
     dealer.captured = initialTable;
     dealer.escobas = escobaDeMano;
   }
@@ -126,19 +128,63 @@ export function createGame(options: CreateGameOptions): GameState {
     players,
     table: escobaDeMano > 0 ? [] : initialTable,
     deck,
-    dealerIndex,
-    currentPlayerIndex: (dealerIndex + 1) % players.length,
-    lastCapturerId: escobaDeMano > 0 ? players[dealerIndex].id : null,
+    dealerIndex: params.dealerIndex,
+    currentPlayerIndex: (params.dealerIndex + 1) % players.length,
+    lastCapturerId: escobaDeMano > 0 ? players[params.dealerIndex].id : null,
     lastAction: null,
-    targetScore,
-    round: 1,
+    targetScore: params.targetScore,
+    round: params.round,
     escobaDeMano,
     phase: 'playing',
     roundSummary: null,
     winnerId: null,
     winnerTeamId: null,
-    isTiebreaker: false,
+    isTiebreaker: params.isTiebreaker,
   };
+}
+
+/** Crea el estado inicial de una partida repartiendo 3 cartas por jugador y 4 a la mesa. */
+export function createGame(options: CreateGameOptions): GameState {
+  const { dealerIndex, targetScore } = resolveOptions(options);
+  const isTeamGame = options.players.length === 4;
+
+  const basePlayers: Player[] = options.players.map((config, index) => ({
+    id: config.id,
+    name: config.name,
+    isBot: config.isBot ?? false,
+    hand: [],
+    captured: [],
+    escobas: 0,
+    score: 0,
+    ...(isTeamGame ? { teamId: (index % 2) as 0 | 1 } : {}),
+  }));
+
+  return dealRound({
+    players: basePlayers,
+    dealerIndex,
+    targetScore,
+    round: 1,
+    isTiebreaker: false,
+    deck: options.deck,
+  });
+}
+
+/** Inicia la siguiente ronda tras finalizar la actual, rotando el repartidor y conservando puntajes. */
+export function startNextRound(state: GameState, deck?: Card[]): GameState {
+  if (state.phase !== 'round_end') {
+    throw new Error(`Cannot start next round when game phase is '${state.phase}'`);
+  }
+
+  const nextDealerIndex = (state.dealerIndex + 1) % state.players.length;
+
+  return dealRound({
+    players: state.players,
+    dealerIndex: nextDealerIndex,
+    targetScore: state.targetScore,
+    round: state.round + 1,
+    isTiebreaker: state.isTiebreaker,
+    deck,
+  });
 }
 
 /** Devuelve todos los subconjuntos no vacíos de la mesa que suman 15 junto con `handCard`. */
