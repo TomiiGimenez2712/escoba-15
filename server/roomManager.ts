@@ -32,6 +32,11 @@ export interface RoomActionResult {
   sessionToken: string;
 }
 
+export interface SocketRecipient {
+  socketId: string;
+  playerId: string;
+}
+
 interface InternalRoomPlayer extends RoomPlayerInfo {
   sessionToken: string;
 }
@@ -113,6 +118,7 @@ export function buildPlayerGameView(
 /** Administra salas online en memoria, sus jugadores y el ciclo inicial de partida. */
 export class RoomManager {
   private readonly rooms = new Map<string, InternalRoom>();
+  private readonly socketBindings = new Map<string, { code: string; playerId: string }>();
 
   /** Crea una sala en espera con código único y registra al jugador creador. */
   createRoom(input: CreateRoomInput): RoomActionResult {
@@ -203,6 +209,65 @@ export class RoomManager {
     }
 
     return this.buildSnapshot(room, playerId);
+  }
+
+  /** Asocia un socket conectado a un jugador dentro de una sala y marca su conexión como activa. */
+  attachSocket(socketId: string, code: string, playerId: string): void {
+    if (typeof socketId !== 'string' || !socketId.trim()) {
+      throw new Error('El identificador del socket es obligatorio.');
+    }
+
+    const normalizedCode = normalizeRoomCode(code);
+    const room = this.getRoomOrThrow(normalizedCode);
+    const player = room.players.find((item) => item.id === playerId);
+    if (!player) {
+      throw new Error(`El jugador no pertenece a la sala ${normalizedCode}.`);
+    }
+
+    if (this.socketBindings.has(socketId)) {
+      this.detachSocket(socketId);
+    }
+
+    player.connected = true;
+    this.socketBindings.set(socketId, {
+      code: normalizedCode,
+      playerId,
+    });
+  }
+
+  /** Desasocia un socket y marca al jugador como desconectado si era su último socket activo. */
+  detachSocket(socketId: string): void {
+    const binding = this.socketBindings.get(socketId);
+    if (!binding) {
+      return;
+    }
+
+    this.socketBindings.delete(socketId);
+
+    const hasOtherSocket = Array.from(this.socketBindings.values()).some(
+      (entry) => entry.code === binding.code && entry.playerId === binding.playerId
+    );
+    if (!hasOtherSocket) {
+      const room = this.rooms.get(binding.code);
+      const player = room?.players.find((item) => item.id === binding.playerId);
+      if (player) {
+        player.connected = false;
+      }
+    }
+  }
+
+  /** Devuelve los sockets actualmente asociados a una sala junto con su playerId. */
+  getSocketRecipients(code: string): SocketRecipient[] {
+    const normalizedCode = normalizeRoomCode(code);
+    this.getRoomOrThrow(normalizedCode);
+
+    const recipients: SocketRecipient[] = [];
+    for (const [socketId, binding] of this.socketBindings.entries()) {
+      if (binding.code === normalizedCode) {
+        recipients.push({ socketId, playerId: binding.playerId });
+      }
+    }
+    return recipients;
   }
 
   private generateUniqueCode(): string {
