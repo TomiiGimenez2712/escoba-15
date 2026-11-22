@@ -7,6 +7,7 @@ import type {
   PlayAction,
   PlayerGameView,
 } from '../../shared/types';
+import { RulesModal } from './RulesModal';
 import { SpanishCard } from './SpanishCard';
 
 export interface GameTableProps {
@@ -68,6 +69,7 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedComboIndex, setSelectedComboIndex] = useState(0);
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   const handSignature = localHand.map((card) => card.id).join(',');
 
@@ -121,6 +123,17 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
 
   return (
     <div className="game-table">
+      <header className="table-topbar">
+        <div className="table-topbar__actions">
+          <button
+            type="button"
+            className="topbar-button"
+            onClick={() => setRulesOpen(true)}
+          >
+            Reglas
+          </button>
+        </div>
+      </header>
       <section
         className="table-zone table-zone--rival"
         role="region"
@@ -281,6 +294,7 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
           ))}
         </div>
       </section>
+      <RulesModal open={rulesOpen} onClose={() => setRulesOpen(false)} />
     </div>
   );
 }
