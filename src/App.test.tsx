@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDeck } from '../shared/deck';
-import { createGame } from '../shared/engine';
+import { createGame, playCard } from '../shared/engine';
 import type { Card } from '../shared/types';
 import App from './App';
 import { GameTable } from './components/GameTable';
@@ -156,5 +156,96 @@ describe('App — flujo inicial y mesa de juego', () => {
         /de (oros|copas|espadas|bastos)/i,
       ),
     ).toHaveLength(0);
+  });
+
+  it('permite seleccionar carta, elegir entre 0/1/>1 combinaciones, descartar, capturar y mostrar ¡ESCOBA!', async () => {
+    const user = userEvent.setup();
+    const onPlayAction = vi.fn();
+
+    const game = createGame({
+      dealerIndex: 1,
+      players: [
+        { id: 'p1', name: 'Tú' },
+        { id: 'p2', name: 'Bot', isBot: true },
+      ],
+      deck: buildDeckWithPrefix([
+        'oros-3',
+        'oros-11',
+        'oros-5',
+        'bastos-1',
+        'bastos-3',
+        'bastos-4',
+        'copas-12',
+        'oros-4',
+        'copas-6',
+        'espadas-7',
+      ]),
+    });
+
+    const { rerender } = render(
+      <GameTable game={game} localPlayerId="p1" onPlayAction={onPlayAction} />,
+    );
+
+    const rivalZone = screen.getByRole('region', { name: /rival/i });
+    const turnIndicator = screen.getByText(/turno/i);
+    expect(turnIndicator).toHaveTextContent(/tú/i);
+    expect(rivalZone).not.toContainElement(turnIndicator);
+
+    const playerHand = screen.getByRole('region', { name: /tu mano/i });
+    const handButtons = within(playerHand).getAllByRole('button');
+    expect(handButtons).toHaveLength(3);
+    for (const button of handButtons) {
+      expect(button).toHaveAttribute('type', 'button');
+    }
+
+    const tableZone = screen.getByRole('region', { name: /mesa/i });
+
+    // 0 combinaciones: 3 de oros contra {12 copas, 4 oros, 6 copas, 7 espadas}
+    const card3 = within(playerHand).getByRole('button', { name: '3 de oros' });
+    await user.click(card3);
+    expect(card3).toHaveAttribute('data-selected', 'true');
+    expect(screen.queryByRole('button', { name: /levantar/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /tirar a la mesa/i }));
+    expect(onPlayAction).toHaveBeenCalledWith({ type: 'discard', cardId: 'oros-3' });
+
+    // 1 combinación: 11 de oros (9) + 6 de copas (6) = 15
+    await user.click(within(playerHand).getByRole('button', { name: '11 de oros' }));
+    expect(within(tableZone).getByLabelText('6 de copas')).toHaveAttribute('data-highlighted', 'true');
+    expect(within(tableZone).getByLabelText('12 de copas')).not.toHaveAttribute('data-highlighted', 'true');
+    expect(screen.getByRole('button', { name: /levantar \(15\)/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /tirar a la mesa/i })).toBeInTheDocument();
+
+    // >1 combinaciones: 5 de oros con [12 copas] y [4 oros, 6 copas]
+    await user.click(within(playerHand).getByRole('button', { name: '5 de oros' }));
+    expect(within(tableZone).getByLabelText('12 de copas')).toHaveAttribute('data-highlighted', 'true');
+    expect(within(tableZone).getByLabelText('4 de oros')).not.toHaveAttribute('data-highlighted', 'true');
+
+    expect(screen.getByRole('button', { name: /12 de copas/i })).toBeInTheDocument();
+    const secondComboChip = screen.getByRole('button', { name: /4 de oros.*6 de copas/i });
+    await user.click(secondComboChip);
+
+    expect(within(tableZone).getByLabelText('12 de copas')).not.toHaveAttribute('data-highlighted', 'true');
+    expect(within(tableZone).getByLabelText('4 de oros')).toHaveAttribute('data-highlighted', 'true');
+    expect(within(tableZone).getByLabelText('6 de copas')).toHaveAttribute('data-highlighted', 'true');
+
+    await user.click(screen.getByRole('button', { name: /levantar \(15\)/i }));
+    expect(onPlayAction).toHaveBeenCalledWith({
+      type: 'capture',
+      cardId: 'oros-5',
+      tableCardIds: ['oros-4', 'copas-6'],
+    });
+
+    // Estado con lastAction.madeEscoba === true
+    const escobaState = playCard(
+      { ...game, table: [game.table[0]] },
+      'p1',
+      { type: 'capture', cardId: 'oros-5', tableCardIds: ['copas-12'] },
+    );
+
+    rerender(<GameTable game={escobaState} localPlayerId="p1" onPlayAction={onPlayAction} />);
+    expect(screen.getByText(/¡ESCOBA!/)).toBeInTheDocument();
+    expect(screen.getByText(/5 de oros/i)).toBeInTheDocument();
+    expect(screen.getByText(/12 de copas/i)).toBeInTheDocument();
   });
 });
