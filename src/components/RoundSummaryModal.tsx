@@ -1,8 +1,8 @@
 import { useId } from 'react';
-import type { GameState, ParticipantRoundScore } from '../../shared/types';
+import type { GameState, ParticipantRoundScore, PlayerGameView } from '../../shared/types';
 
 export interface RoundSummaryModalProps {
-  game: GameState;
+  game: GameState | PlayerGameView;
   onNextRound: () => void;
   onRematch: () => void;
 }
@@ -35,7 +35,9 @@ const SCORE_ROWS: ScoreRow[] = [
 ];
 
 /** Resuelve el participante ganador a partir de `winnerId` o `winnerTeamId`. */
-function findWinnerParticipant(game: GameState): ParticipantRoundScore | undefined {
+function findWinnerParticipant(
+  game: GameState | PlayerGameView,
+): ParticipantRoundScore | undefined {
   const summary = game.roundSummary;
   if (!summary) {
     return undefined;

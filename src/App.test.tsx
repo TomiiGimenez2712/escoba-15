@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDeck } from '../shared/deck';
@@ -696,6 +696,7 @@ describe('App — lobby online y salas con código (H5)', () => {
   const originalSearch = window.location.search;
 
   afterEach(() => {
+    cleanup();
     resetFakeSocket();
     window.history.replaceState({}, '', originalSearch || '/');
     if (originalClipboardDescriptor) {
@@ -879,6 +880,7 @@ describe('App — lobby online y salas con código (H5)', () => {
 
 describe('App — partida online sincronizada, reconexión y revancha (H6)', () => {
   afterEach(() => {
+    cleanup();
     sessionStorage.clear();
     resetFakeSocket();
     vi.restoreAllMocks();

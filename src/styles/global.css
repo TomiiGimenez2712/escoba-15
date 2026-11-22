@@ -450,6 +450,61 @@ body {
   text-align: center;
 }
 
+/* Barra superior y banner de desconexión en partidas online — mobile-first */
+.online-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0.65rem 0.65rem 0;
+}
+
+.leave-button {
+  appearance: none;
+  min-height: 40px;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 1.5px solid rgba(251, 191, 36, 0.55);
+  background: rgba(6, 34, 18, 0.78);
+  color: var(--gold-light);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
+}
+
+.leave-button:hover {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: #fbbf24;
+}
+
+.leave-button:active {
+  transform: translateY(1px);
+}
+
+.leave-button:focus-visible {
+  outline: 3px solid #fef08a;
+  outline-offset: 2px;
+}
+
+.disconnect-banner {
+  width: calc(100% - 1.3rem);
+  max-width: 1080px;
+  margin: 0.5rem auto 0;
+  padding: 0.6rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(180, 83, 9, 0.36);
+  border: 1.5px solid rgba(251, 191, 36, 0.75);
+  color: #fef3c7;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
 /* Mesa de juego — mobile-first 100dvh */
 .game-table {
   min-height: 100dvh;
@@ -1094,6 +1149,23 @@ button.spanish-card:disabled {
 
   .copy-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .online-topbar {
+    padding: 1rem 1.5rem 0;
+  }
+
+  .leave-button {
+    min-height: 44px;
+    padding: 0.5rem 1.25rem;
+    font-size: 0.92rem;
+  }
+
+  .disconnect-banner {
+    width: calc(100% - 3rem);
+    margin-top: 0.75rem;
+    padding: 0.7rem 1.25rem;
+    font-size: 0.95rem;
   }
 
   .game-table {

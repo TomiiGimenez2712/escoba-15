@@ -30,6 +30,9 @@ export default function App({ initialGame = null }: AppProps = {}) {
     loading: onlineLoading,
     connectAndCreate,
     connectAndJoin,
+    playOnlineAction,
+    requestNextRound,
+    requestRematch,
     leaveRoom,
   } = useOnlineGame();
 
@@ -56,12 +59,38 @@ export default function App({ initialGame = null }: AppProps = {}) {
   }
 
   if (onlineSnapshot?.status === 'playing' && onlineSnapshot.gameView) {
+    const gameView = onlineSnapshot.gameView;
+    const hasDisconnectedPlayer = onlineSnapshot.players.some(
+      (player) => player.id !== onlineSnapshot.selfPlayerId && !player.connected,
+    );
+    const showRoundModal =
+      (gameView.phase === 'round_end' || gameView.phase === 'game_over') &&
+      Boolean(gameView.roundSummary);
+
     return (
       <main className="app-shell">
+        <div className="online-topbar">
+          <button type="button" className="leave-button" onClick={leaveRoom}>
+            Salir
+          </button>
+        </div>
+        {hasDisconnectedPlayer && (
+          <div className="disconnect-banner" role="status">
+            Tu amigo se desconectó. Esperando reconexión...
+          </div>
+        )}
         <GameTable
-          game={onlineSnapshot.gameView}
+          game={gameView}
           localPlayerId={onlineSnapshot.selfPlayerId}
+          onPlayAction={playOnlineAction}
         />
+        {showRoundModal && (
+          <RoundSummaryModal
+            game={gameView}
+            onNextRound={requestNextRound}
+            onRematch={requestRematch}
+          />
+        )}
       </main>
     );
   }

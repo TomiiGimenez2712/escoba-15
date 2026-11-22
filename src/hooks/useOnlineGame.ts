@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import type { RoomSnapshot, TargetScore } from '../../shared/types';
+import type { PlayAction, RoomSnapshot, TargetScore } from '../../shared/types';
+
+export const ONLINE_SESSION_STORAGE_KEY = 'escoba15_online_session';
 
 export interface CreateOnlineRoomInput {
   playerName: string;
@@ -22,7 +24,44 @@ export interface UseOnlineGameResult {
   loading: boolean;
   connectAndCreate: (input: CreateOnlineRoomInput) => void;
   connectAndJoin: (input: JoinOnlineRoomInput) => void;
+  playOnlineAction: (action: PlayAction) => void;
+  requestNextRound: () => void;
+  requestRematch: () => void;
   leaveRoom: () => void;
+}
+
+function persistOnlineSession(snapshot: RoomSnapshot): void {
+  if (!snapshot.sessionToken) {
+    return;
+  }
+  try {
+    if (typeof sessionStorage === 'undefined') {
+      return;
+    }
+    const playerName =
+      snapshot.players.find((player) => player.id === snapshot.selfPlayerId)?.name ?? '';
+    sessionStorage.setItem(
+      ONLINE_SESSION_STORAGE_KEY,
+      JSON.stringify({
+        code: snapshot.code,
+        sessionToken: snapshot.sessionToken,
+        playerName,
+      })
+    );
+  } catch {
+    // Ignorar errores de acceso a sessionStorage (ej. modo privado o cuota).
+  }
+}
+
+function clearOnlineSession(): void {
+  try {
+    if (typeof sessionStorage === 'undefined') {
+      return;
+    }
+    sessionStorage.removeItem(ONLINE_SESSION_STORAGE_KEY);
+  } catch {
+    // Ignorar errores de acceso a sessionStorage.
+  }
 }
 
 function extractRoomErrorMessage(payload: unknown): string {
@@ -49,6 +88,7 @@ export function useOnlineGame(): UseOnlineGameResult {
   const socketRef = useRef<Socket | null>(null);
 
   const handleRoomState = useCallback((nextSnapshot: RoomSnapshot) => {
+    persistOnlineSession(nextSnapshot);
     setSnapshot(nextSnapshot);
     setError(null);
     setLoading(false);
@@ -101,6 +141,7 @@ export function useOnlineGame(): UseOnlineGameResult {
     }
     setLoading(false);
     if (ack.ok) {
+      persistOnlineSession(ack.snapshot);
       setSnapshot(ack.snapshot);
       setError(null);
     } else if (ack.error) {
@@ -154,7 +195,36 @@ export function useOnlineGame(): UseOnlineGameResult {
     [ensureSocket, handleAck]
   );
 
+  const emitRoomGameEvent = useCallback(
+    (event: 'game:play' | 'game:nextRound' | 'game:rematch', payload: unknown) => {
+      const socket = socketRef.current;
+      if (!socket) {
+        return;
+      }
+      socket.emit(event, payload, (ack?: RoomAck) => {
+        handleAck(ack);
+      });
+    },
+    [handleAck]
+  );
+
+  const playOnlineAction = useCallback(
+    (action: PlayAction) => {
+      emitRoomGameEvent('game:play', { action });
+    },
+    [emitRoomGameEvent]
+  );
+
+  const requestNextRound = useCallback(() => {
+    emitRoomGameEvent('game:nextRound', {});
+  }, [emitRoomGameEvent]);
+
+  const requestRematch = useCallback(() => {
+    emitRoomGameEvent('game:rematch', {});
+  }, [emitRoomGameEvent]);
+
   const leaveRoom = useCallback(() => {
+    clearOnlineSession();
     disconnectSocket();
     setSnapshot(null);
     setError(null);
@@ -167,6 +237,9 @@ export function useOnlineGame(): UseOnlineGameResult {
     loading,
     connectAndCreate,
     connectAndJoin,
+    playOnlineAction,
+    requestNextRound,
+    requestRematch,
     leaveRoom,
   };
 }
