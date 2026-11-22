@@ -1436,7 +1436,7 @@ button.spanish-card:disabled {
 
 .spanish-card__pips {
   position: absolute;
-  inset: 14% 12% 11% 12%;
+  inset: 10% 7% 7% 7%;
   pointer-events: none;
 }
 
@@ -1450,8 +1450,8 @@ button.spanish-card:disabled {
 
 .spanish-card__figure-scene {
   position: relative;
-  width: 82%;
-  height: 76%;
+  width: 86%;
+  height: 78%;
   margin-top: 8%;
   pointer-events: none;
 }
@@ -1464,7 +1464,7 @@ button.spanish-card:disabled {
 
 .spanish-card__figure-emblem {
   position: absolute;
-  width: 24%;
+  width: 34%;
   aspect-ratio: 1;
   display: flex;
   align-items: center;
@@ -1472,18 +1472,18 @@ button.spanish-card:disabled {
 }
 
 .spanish-card__figure-emblem--sota {
-  right: 17%;
-  top: 43%;
+  right: 13%;
+  top: 39%;
 }
 
 .spanish-card__figure-emblem--caballo {
-  left: 11%;
-  top: 23%;
+  left: 8%;
+  top: 16%;
 }
 
 .spanish-card__figure-emblem--rey {
-  right: 14%;
-  top: 40%;
+  right: 11%;
+  top: 39%;
 }
 
 .spanish-card__emblem-svg {

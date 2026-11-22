@@ -62,45 +62,45 @@ interface PipPoint {
 }
 
 const PIP_LAYOUTS: Record<1 | 2 | 3 | 4 | 5 | 6 | 7, readonly PipPoint[]> = {
-  1: [{ x: 50, y: 50, size: 46 }],
+  1: [{ x: 50, y: 50, size: 58 }],
   2: [
-    { x: 50, y: 29, size: 28 },
-    { x: 50, y: 71, size: 28, rotate: 180 },
+    { x: 50, y: 27, size: 32 },
+    { x: 50, y: 73, size: 32, rotate: 180 },
   ],
   3: [
-    { x: 50, y: 23, size: 24 },
-    { x: 50, y: 50, size: 24 },
-    { x: 50, y: 77, size: 24, rotate: 180 },
+    { x: 50, y: 20, size: 31 },
+    { x: 50, y: 50, size: 31 },
+    { x: 50, y: 80, size: 31, rotate: 180 },
   ],
   4: [
-    { x: 32, y: 31, size: 24 },
-    { x: 68, y: 31, size: 24 },
-    { x: 32, y: 69, size: 24, rotate: 180 },
-    { x: 68, y: 69, size: 24, rotate: 180 },
+    { x: 30, y: 27, size: 31 },
+    { x: 70, y: 27, size: 31 },
+    { x: 30, y: 73, size: 31, rotate: 180 },
+    { x: 70, y: 73, size: 31, rotate: 180 },
   ],
   5: [
-    { x: 30, y: 26, size: 22 },
-    { x: 70, y: 26, size: 22 },
-    { x: 50, y: 50, size: 22 },
-    { x: 30, y: 74, size: 22, rotate: 180 },
-    { x: 70, y: 74, size: 22, rotate: 180 },
+    { x: 28, y: 22, size: 31 },
+    { x: 72, y: 22, size: 31 },
+    { x: 50, y: 50, size: 31 },
+    { x: 28, y: 78, size: 31, rotate: 180 },
+    { x: 72, y: 78, size: 31, rotate: 180 },
   ],
   6: [
-    { x: 31, y: 24, size: 21 },
-    { x: 69, y: 24, size: 21 },
-    { x: 31, y: 50, size: 21 },
-    { x: 69, y: 50, size: 21 },
-    { x: 31, y: 76, size: 21, rotate: 180 },
-    { x: 69, y: 76, size: 21, rotate: 180 },
+    { x: 30, y: 20, size: 30 },
+    { x: 70, y: 20, size: 30 },
+    { x: 30, y: 50, size: 30 },
+    { x: 70, y: 50, size: 30 },
+    { x: 30, y: 80, size: 30, rotate: 180 },
+    { x: 70, y: 80, size: 30, rotate: 180 },
   ],
   7: [
-    { x: 30, y: 22, size: 20 },
-    { x: 70, y: 22, size: 20 },
-    { x: 50, y: 37, size: 20 },
-    { x: 30, y: 53, size: 20 },
-    { x: 70, y: 53, size: 20 },
-    { x: 30, y: 77, size: 20, rotate: 180 },
-    { x: 70, y: 77, size: 20, rotate: 180 },
+    { x: 28, y: 19, size: 29 },
+    { x: 72, y: 19, size: 29 },
+    { x: 50, y: 35, size: 29 },
+    { x: 28, y: 52, size: 29 },
+    { x: 72, y: 52, size: 29 },
+    { x: 28, y: 81, size: 29, rotate: 180 },
+    { x: 72, y: 81, size: 29, rotate: 180 },
   ],
 };
 
@@ -285,8 +285,8 @@ function FigureIllustration({
           <path d="M24 47 C24 41 54 41 54 47 L58 84 H20 Z" fill={primary} stroke="#1e293b" strokeWidth="2" strokeLinejoin="round" />
           <path d="M32 44 L39 54 L46 44 Z" fill={secondary} />
           <rect x="23" y="64" width="32" height="5" rx="2" fill="#f59e0b" stroke="#78350f" strokeWidth="1.3" />
-          {/* Escudo con el palo */}
-          <circle cx="56" cy="54" r="13" fill="#ffffff" stroke={primary} strokeWidth="2" />
+          {/* Escudo grande con el palo */}
+          <circle cx="55" cy="54" r="16" fill="#ffffff" stroke={primary} strokeWidth="2.2" />
         </svg>
         <div className="spanish-card__figure-emblem spanish-card__figure-emblem--sota">
           <SuitSvg suit={suit} className="spanish-card__emblem-svg" />
@@ -296,28 +296,38 @@ function FigureIllustration({
   }
 
   if (number === 11) {
-    // Caballo: corcel encabritado con jinete y emblema del palo
+    // Caballo: corcel estilizado al trote/galope con jinete y emblema bien visible
     return (
       <div className="spanish-card__figure-scene" aria-hidden="true">
         <svg viewBox="0 0 80 100" className="spanish-card__figure-svg">
-          {/* Jinete */}
-          <path d="M27 21 C28 14 40 14 42 21 Z" fill={primary} stroke="#1e293b" strokeWidth="1.8" />
-          <circle cx="34" cy="27" r="6.5" fill="#fde68a" stroke="#78350f" strokeWidth="1.6" />
-          <path d="M26 35 L42 35 L44 53 L25 53 Z" fill={primary} stroke="#1e293b" strokeWidth="1.8" strokeLinejoin="round" />
-          {/* Caballo (cuerpo, cuello, cabeza, crin y patas) */}
+          {/* Cola del caballo */}
           <path
-            d="M18 60 C20 48 34 46 47 48 L54 32 L64 36 L60 47 C64 52 63 62 56 66 L61 84 H53 L49 69 H31 L25 84 H17 L23 67 C19 65 17 63 18 60 Z"
+            d="M17 57 C9 59 7 68 12 75 C15 69 17 65 21 63 Z"
+            fill="#78350f"
+            stroke="#451a03"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          {/* Jinete */}
+          <path d="M29 19 C30 12 42 12 44 19 Z" fill={primary} stroke="#1e293b" strokeWidth="1.8" />
+          <circle cx="36" cy="25" r="6" fill="#fde68a" stroke="#78350f" strokeWidth="1.6" />
+          <path d="M28 33 L44 33 L46 51 L27 51 Z" fill={primary} stroke="#1e293b" strokeWidth="1.8" strokeLinejoin="round" />
+          {/* Caballo (cuerpo estilizado, cuello arqueado, orejas, hocico y patas al galope) */}
+          <path
+            d="M19 57 C21 47 34 46 47 48 L53 31 L56 24 L59 29 L62 25 L62 32 L70 38 L66 43 L60 41 L57 48 C61 53 60 61 55 65 L65 77 L59 83 L50 69 L32 69 L25 84 L18 82 L24 66 C20 64 18 61 19 57 Z"
             fill="#d97706"
             stroke="#451a03"
             strokeWidth="2"
             strokeLinejoin="round"
           />
-          <path d="M51 34 C46 37 44 43 46 47" fill="none" stroke="#78350f" strokeWidth="2.4" strokeLinecap="round" />
-          <circle cx="58" cy="38" r="1.4" fill="#1e293b" />
+          {/* Crin y rienda */}
+          <path d="M52 32 C47 36 45 42 47 47" fill="none" stroke="#78350f" strokeWidth="2.8" strokeLinecap="round" />
+          <path d="M62 40 L44 47" fill="none" stroke="#451a03" strokeWidth="1.3" />
+          <circle cx="61" cy="34" r="1.4" fill="#1e293b" />
           {/* Silla */}
-          <path d="M28 48 H44 L42 56 H29 Z" fill={secondary} stroke="#1e293b" strokeWidth="1.5" />
-          {/* Medallón del palo */}
-          <circle cx="19" cy="34" r="11" fill="#ffffff" stroke={primary} strokeWidth="2" />
+          <path d="M29 48 H45 L43 56 H30 Z" fill={secondary} stroke="#1e293b" strokeWidth="1.5" />
+          {/* Medallón grande del palo */}
+          <circle cx="20" cy="31" r="15.5" fill="#ffffff" stroke={primary} strokeWidth="2.2" />
         </svg>
         <div className="spanish-card__figure-emblem spanish-card__figure-emblem--caballo">
           <SuitSvg suit={suit} className="spanish-card__emblem-svg" />
@@ -326,7 +336,7 @@ function FigureIllustration({
     );
   }
 
-  // 12 — Rey: corona real, barba, manto y emblema del palo
+  // 12 — Rey: corona real, barba, manto y emblema grande del palo
   return (
     <div className="spanish-card__figure-scene" aria-hidden="true">
       <svg viewBox="0 0 80 100" className="spanish-card__figure-svg">
@@ -353,8 +363,8 @@ function FigureIllustration({
         />
         <path d="M33 44 H47 L45 86 H35 Z" fill={secondary} opacity="0.9" />
         <circle cx="40" cy="54" r="3" fill="#f59e0b" />
-        {/* Emblema real */}
-        <circle cx="59" cy="52" r="12.5" fill="#ffffff" stroke="#b45309" strokeWidth="2" />
+        {/* Emblema real grande */}
+        <circle cx="57" cy="54" r="16" fill="#ffffff" stroke="#b45309" strokeWidth="2.2" />
       </svg>
       <div className="spanish-card__figure-emblem spanish-card__figure-emblem--rey">
         <SuitSvg suit={suit} className="spanish-card__emblem-svg" />
@@ -506,7 +516,6 @@ export function SpanishCard({
 
       <span className="spanish-card__corner">
         <span className="spanish-card__number">{card.number}</span>
-        <SuitSvg suit={card.suit} className="spanish-card__mini-suit" />
       </span>
 
       {showFigureValues && card.number >= 10 && (
