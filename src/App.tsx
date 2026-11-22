@@ -1,34 +1,72 @@
 import { useState } from 'react';
-import { createGame, playCard } from '../shared/engine';
-import type { GameState } from '../shared/types';
+import { createGame, playCard, startNextRound } from '../shared/engine';
+import type { GameState, PlayerConfig } from '../shared/types';
 import { GameTable } from './components/GameTable';
+import { RoundSummaryModal } from './components/RoundSummaryModal';
 
-export default function App() {
-  const [game, setGame] = useState<GameState | null>(null);
+export interface AppProps {
+  initialGame?: GameState | null;
+}
+
+const DEFAULT_PLAYERS: PlayerConfig[] = [
+  { id: 'player-1', name: 'Tú', isBot: false },
+  { id: 'bot-1', name: 'Bot', isBot: true },
+];
+
+/** Inicia una partida limpia preservando participantes y puntaje objetivo si existen. */
+function createFreshGame(previousGame: GameState | null = null): GameState {
+  const players: PlayerConfig[] = previousGame
+    ? previousGame.players.map((player) => ({
+        id: player.id,
+        name: player.name,
+        isBot: player.isBot,
+      }))
+    : DEFAULT_PLAYERS;
+
+  return createGame({
+    players,
+    targetScore: previousGame?.targetScore ?? 15,
+    dealerIndex: 1,
+  });
+}
+
+export default function App({ initialGame = null }: AppProps = {}) {
+  const [game, setGame] = useState<GameState | null>(initialGame);
 
   const handleStartGame = () => {
-    setGame(
-      createGame({
-        players: [
-          { id: 'player-1', name: 'Tú', isBot: false },
-          { id: 'bot-1', name: 'Bot', isBot: true },
-        ],
-        targetScore: 15,
-        dealerIndex: 1,
-      })
-    );
+    setGame(createFreshGame());
+  };
+
+  const handleNextRound = () => {
+    setGame((prev) => (prev ? startNextRound(prev) : null));
+  };
+
+  const handleRematch = () => {
+    setGame((prev) => createFreshGame(prev));
   };
 
   if (game) {
+    const showRoundModal =
+      (game.phase === 'round_end' || game.phase === 'game_over') && Boolean(game.roundSummary);
+
     return (
       <main className="app-shell">
         <GameTable
           game={game}
           localPlayerId={game.players[0].id}
           onPlayAction={(action) =>
-            setGame((prev) => (prev ? playCard(prev, prev.players[0].id, action) : null))
+            setGame((prev) =>
+              prev && prev.phase === 'playing' ? playCard(prev, prev.players[0].id, action) : prev,
+            )
           }
         />
+        {showRoundModal && (
+          <RoundSummaryModal
+            game={game}
+            onNextRound={handleNextRound}
+            onRematch={handleRematch}
+          />
+        )}
       </main>
     );
   }

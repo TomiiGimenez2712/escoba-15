@@ -506,6 +506,131 @@ button.spanish-card:disabled {
   height: 100%;
 }
 
+/* Modal de resumen de ronda y fin de partida — mobile-first */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(3, 18, 9, 0.78);
+  backdrop-filter: blur(4px);
+  overflow-y: auto;
+}
+
+.round-modal {
+  width: min(100%, 520px);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1.25rem 1rem;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(12, 54, 29, 0.98) 0%, rgba(6, 30, 16, 0.98) 100%);
+  border: 1.5px solid rgba(251, 191, 36, 0.55);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+  color: #f8fafc;
+}
+
+.round-modal__title {
+  margin: 0;
+  font-size: clamp(1.25rem, 4.5vw, 1.65rem);
+  font-weight: 800;
+  text-align: center;
+  color: var(--gold-light);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.tiebreaker-badge {
+  align-self: center;
+  margin: 0;
+  padding: 0.35rem 0.95rem;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.22);
+  border: 1.5px solid #fbbf24;
+  color: var(--gold-light);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.winner-banner {
+  margin: 0;
+  padding: 0.65rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fde047 0%, #f59e0b 100%);
+  color: #1f1603;
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.summary-table th,
+.summary-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.summary-table thead th {
+  background: rgba(6, 34, 18, 0.92);
+  color: var(--gold-light);
+  font-weight: 700;
+  text-align: center;
+}
+
+.summary-table thead th:first-child {
+  text-align: left;
+}
+
+.summary-table tbody th {
+  text-align: left;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.summary-table tbody td {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-table__row--total th,
+.summary-table__row--total td {
+  background: rgba(255, 255, 255, 0.06);
+  font-weight: 700;
+}
+
+.summary-table__row--accumulated th,
+.summary-table__row--accumulated td {
+  background: rgba(251, 191, 36, 0.14);
+  color: var(--gold-light);
+  font-weight: 800;
+  border-bottom: none;
+}
+
+.round-modal__actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+.round-modal__button {
+  width: 100%;
+}
+
 /* Escritorio y pantallas medianas/grandes */
 @media (min-width: 640px) {
   .game-table {
@@ -554,5 +679,23 @@ button.spanish-card:disabled {
 
   .spanish-card__figure {
     font-size: 0.75rem;
+  }
+
+  .round-modal {
+    padding: 1.75rem 1.75rem;
+    gap: 1.1rem;
+  }
+
+  .summary-table {
+    font-size: 0.98rem;
+  }
+
+  .summary-table th,
+  .summary-table td {
+    padding: 0.6rem 0.9rem;
+  }
+
+  .round-modal__button {
+    width: auto;
   }
 }

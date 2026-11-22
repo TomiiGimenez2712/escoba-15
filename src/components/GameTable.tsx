@@ -28,8 +28,13 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
     game.players.find((player) => player.id === resolvedLocalPlayerId) ?? game.players[0];
   const opponents = game.players.filter((player) => player.id !== localPlayer?.id);
   const currentPlayer = game.players[game.currentPlayerIndex];
+  const isPlaying = game.phase === 'playing';
   const isLocalTurn = Boolean(
-    onPlayAction && currentPlayer && localPlayer && currentPlayer.id === localPlayer.id,
+    isPlaying &&
+      onPlayAction &&
+      currentPlayer &&
+      localPlayer &&
+      currentPlayer.id === localPlayer.id,
   );
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -208,7 +213,7 @@ export function GameTable({ game, localPlayerId, onPlayAction }: GameTableProps)
               key={card.id}
               card={card}
               selected={selectedCard?.id === card.id}
-              disabled={onPlayAction ? !isLocalTurn : false}
+              disabled={!isPlaying || (onPlayAction ? !isLocalTurn : false)}
               onClick={onPlayAction ? () => handleSelectCard(card.id) : undefined}
             />
           ))}
