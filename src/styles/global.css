@@ -1,0 +1,362 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --felt-center: #196939;
+  --felt-mid: #114d29;
+  --felt-edge: #082d17;
+  --gold-accent: #f59e0b;
+  --gold-light: #fde68a;
+  --card-bg: #fdfaf2;
+  --card-border: #d6cbb3;
+  --card-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100dvh;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #f8fafc;
+  background: radial-gradient(
+    ellipse at center,
+    var(--felt-center) 0%,
+    var(--felt-mid) 58%,
+    var(--felt-edge) 100%
+  );
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root,
+.app-shell {
+  min-height: 100dvh;
+  width: 100%;
+}
+
+/* Pantalla inicial */
+.start-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.start-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2.25rem 2rem;
+  width: min(100%, 380px);
+  border-radius: 20px;
+  background: rgba(6, 34, 18, 0.72);
+  border: 1.5px solid rgba(251, 191, 36, 0.45);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+}
+
+.start-title {
+  margin: 0;
+  font-size: clamp(1.9rem, 6vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--gold-light);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.play-button {
+  appearance: none;
+  border: 2px solid #fbbf24;
+  border-radius: 999px;
+  padding: 0.85rem 2.75rem;
+  min-height: 48px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #1f1603;
+  background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 100%);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.14s ease, filter 0.14s ease;
+}
+
+.play-button:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.play-button:active {
+  transform: translateY(1px);
+}
+
+.play-button:focus-visible {
+  outline: 3px solid #fef08a;
+  outline-offset: 3px;
+}
+
+/* Mesa de juego — mobile-first 100dvh */
+.game-table {
+  min-height: 100dvh;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0.75rem 0.65rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.table-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.zone-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: rgba(253, 230, 138, 0.85);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.table-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  flex: 1;
+}
+
+.table-zone--mesa {
+  width: 100%;
+  padding: 0.75rem 0.5rem;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.opponent-hand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.deck-stack {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.deck-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  height: 2.25rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: rgba(6, 34, 18, 0.82);
+  border: 1.5px solid rgba(251, 191, 36, 0.65);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--gold-light);
+}
+
+.deck-empty {
+  width: clamp(46px, 13vw, 72px);
+  aspect-ratio: 5 / 8;
+  border-radius: 8px;
+  border: 2px dashed rgba(255, 255, 255, 0.28);
+}
+
+.escoba-mano-banner {
+  padding: 0.55rem 1.1rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fde68a 0%, #f59e0b 100%);
+  color: #1f1603;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Carta española — proporción tradicional 5:8 */
+.spanish-card {
+  position: relative;
+  width: clamp(64px, 18vw, 96px);
+  aspect-ratio: 5 / 8;
+  border-radius: 8px;
+  flex-shrink: 0;
+  user-select: none;
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.spanish-card--compact {
+  width: clamp(46px, 13vw, 72px);
+}
+
+.spanish-card--front {
+  background: var(--card-bg);
+  border: 1.5px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+}
+
+.spanish-card--oros {
+  color: #b45309;
+}
+
+.spanish-card--copas {
+  color: #b91c1c;
+}
+
+.spanish-card--espadas {
+  color: #1e3a8a;
+}
+
+.spanish-card--bastos {
+  color: #166534;
+}
+
+.spanish-card__pinta {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.spanish-card__corner {
+  position: absolute;
+  top: 7%;
+  left: 10%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  gap: 1px;
+}
+
+.spanish-card__number {
+  font-size: clamp(0.85rem, 2.8vw, 1.2rem);
+  font-weight: 800;
+  font-variant-numeric: lining-nums;
+}
+
+.spanish-card__mini-suit {
+  width: clamp(10px, 2.8vw, 14px);
+  height: clamp(10px, 2.8vw, 14px);
+}
+
+.spanish-card__center {
+  width: 58%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spanish-card__suit-art {
+  width: 100%;
+  height: 100%;
+}
+
+.spanish-card__figure {
+  position: absolute;
+  bottom: 7%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(0.55rem, 1.7vw, 0.72rem);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.spanish-card--back {
+  background: #7f1d1d;
+  border: 1.5px solid #fde68a;
+}
+
+.spanish-card__back-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Escritorio y pantallas medianas/grandes */
+@media (min-width: 640px) {
+  .game-table {
+    padding: 1.25rem 1.5rem 1.5rem;
+    gap: 1rem;
+  }
+
+  .table-middle {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+  }
+
+  .table-zone--deck {
+    flex-shrink: 0;
+  }
+
+  .table-zone--mesa {
+    width: auto;
+    min-width: 420px;
+    padding: 1.1rem 1.4rem;
+  }
+
+  .card-row {
+    gap: 0.75rem;
+  }
+
+  .spanish-card {
+    width: 102px;
+    border-radius: 10px;
+  }
+
+  .spanish-card--compact {
+    width: 78px;
+  }
+
+  .spanish-card__number {
+    font-size: 1.25rem;
+  }
+
+  .spanish-card__mini-suit {
+    width: 15px;
+    height: 15px;
+  }
+
+  .spanish-card__figure {
+    font-size: 0.75rem;
+  }
+}
