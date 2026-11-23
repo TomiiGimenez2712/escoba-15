@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <defs>
+    <pattern id="card-lattice" width="12" height="12" patternUnits="userSpaceOnUse">
+      <path d="M6 0 L12 6 L6 12 L0 6 Z" fill="none" stroke="#64748b" stroke-width="0.9" opacity="0.42" />
+    </pattern>
+  </defs>
+  <rect width="180" height="180" fill="#0f1624" />
+  <rect x="40" y="14" width="100" height="152" rx="10" fill="#fcfbf8" />
+  <rect x="45" y="19" width="90" height="142" rx="6" fill="#1e293b" stroke="#64748b" stroke-width="2" />
+  <rect x="51" y="25" width="78" height="130" rx="4" fill="none" stroke="#94a3b8" stroke-width="1" opacity="0.6" />
+  <rect x="53" y="27" width="74" height="126" rx="3" fill="url(#card-lattice)" />
+  <circle cx="90" cy="90" r="18" fill="#0f172a" stroke="#f59e0b" stroke-width="2.2" />
+  <path d="M90 75 L95.5 90 L90 105 L84.5 90 Z" fill="#fde68a" />
+  <path d="M75 90 L90 84.5 L105 90 L90 95.5 Z" fill="#f59e0b" />
+</svg>

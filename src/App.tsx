@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import type { BotDifficulty, GameState } from '../shared/types';
 import { GameTable } from './components/GameTable';
 import { HomeScreen } from './components/HomeScreen';
 import { RoundSummaryModal } from './components/RoundSummaryModal';
+import { ScorerScreen } from './components/ScorerScreen';
 import { useLocalGame } from './hooks/useLocalGame';
 
 const DIFFICULTY_LABELS: Record<BotDifficulty, string> = {
@@ -15,6 +17,7 @@ export interface AppProps {
 }
 
 export default function App({ initialGame = null }: AppProps = {}) {
+  const [showScorer, setShowScorer] = useState(false);
   const {
     difficulty,
     setDifficulty,
@@ -56,6 +59,10 @@ export default function App({ initialGame = null }: AppProps = {}) {
     );
   }
 
+  if (showScorer) {
+    return <ScorerScreen onBack={() => setShowScorer(false)} />;
+  }
+
   return (
     <HomeScreen
       difficulty={difficulty}
@@ -65,6 +72,7 @@ export default function App({ initialGame = null }: AppProps = {}) {
       onPlayerCountChange={setPlayerCount}
       onTargetScoreChange={setTargetScore}
       onStart={startGame}
+      onOpenScorer={() => setShowScorer(true)}
     />
   );
 }

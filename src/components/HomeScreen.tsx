@@ -13,6 +13,7 @@ export interface HomeScreenProps {
   onPlayerCountChange: (playerCount: PlayerCount) => void;
   onTargetScoreChange: (targetScore: TargetScore) => void;
   onStart: () => void;
+  onOpenScorer?: () => void;
 }
 
 const DIFFICULTY_OPTIONS: RadioOption<BotDifficulty>[] = [
@@ -41,6 +42,7 @@ export function HomeScreen({
   onPlayerCountChange,
   onTargetScoreChange,
   onStart,
+  onOpenScorer,
 }: HomeScreenProps) {
   const baseId = useId();
 
@@ -92,6 +94,16 @@ export function HomeScreen({
           >
             Jugar
           </button>
+
+          {onOpenScorer && (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={onOpenScorer}
+            >
+              Anotador
+            </button>
+          )}
         </div>
       </motion.div>
     </main>

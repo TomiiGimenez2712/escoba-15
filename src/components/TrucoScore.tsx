@@ -1,6 +1,7 @@
 export interface TrucoScoreProps {
   score: number;
   compact?: boolean;
+  board?: boolean;
 }
 
 interface MatchstickBoxProps {
@@ -78,12 +79,18 @@ function MatchstickBox({ sticks }: MatchstickBoxProps) {
 /**
  * Representa un puntaje usando grupos de 5 palitos (fósforos) al estilo del Truco.
  */
-export function TrucoScore({ score, compact = false }: TrucoScoreProps) {
+export function TrucoScore({ score, compact = false, board = false }: TrucoScoreProps) {
   const safeScore = Math.max(0, Math.floor(score));
   const boxes = splitScoreIntoBoxes(safeScore);
   const groups = groupBoxesByFifteen(boxes);
   const label = `${safeScore} ${safeScore === 1 ? 'punto' : 'puntos'} en palitos`;
-  const className = `truco-score ${compact ? 'truco-score--compact' : ''}`.trim();
+  const className = [
+    'truco-score',
+    compact ? 'truco-score--compact' : '',
+    board ? 'truco-score--board' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
