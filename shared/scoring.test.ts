@@ -264,4 +264,81 @@ describe('shared/scoring — scoreRound', () => {
     expect(tieAt21.summary.winnerTeamId).toBeNull();
     expect(tieAt21.players.map((p) => p.score)).toEqual([22, 22]);
   });
+
+  it('en 3 jugadores no otorga punto cuando dos empatan en la cima (sietes, oros o cartas)', () => {
+    const deck = createDeck();
+    // p1: 15 cartas, 5 oros (incluye oros-7), 2 sietes
+    const p1Ids = [
+      'oros-1',
+      'oros-2',
+      'oros-3',
+      'oros-4',
+      'oros-7',
+      'copas-7',
+      'copas-1',
+      'copas-2',
+      'copas-3',
+      'copas-4',
+      'copas-5',
+      'copas-6',
+      'copas-10',
+      'copas-11',
+      'copas-12',
+    ];
+    // p2: 15 cartas, 5 oros, 2 sietes -> empate en los 3 rubros de mayoría
+    const p2Ids = [
+      'oros-5',
+      'oros-6',
+      'oros-10',
+      'oros-11',
+      'oros-12',
+      'espadas-7',
+      'bastos-7',
+      'espadas-1',
+      'espadas-2',
+      'espadas-3',
+      'espadas-4',
+      'espadas-5',
+      'espadas-6',
+      'espadas-10',
+      'espadas-11',
+    ];
+    const { picked: p1Cards, rest: afterP1 } = pickCards(deck, p1Ids);
+    const { picked: p2Cards, rest: p3Cards } = pickCards(afterP1, p2Ids); // p3: 10 cartas, 0 oros, 0 sietes
+
+    const result = scoreRound({
+      players: [
+        makePlayer({ id: 'p1', name: 'Ana', captured: p1Cards, escobas: 1, score: 0 }),
+        makePlayer({ id: 'p2', name: 'Beto', captured: p2Cards, escobas: 0, score: 0 }),
+        makePlayer({ id: 'p3', name: 'Ciro', captured: p3Cards, escobas: 2, score: 0 }),
+      ],
+      round: 1,
+      targetScore: 15,
+    });
+
+    expect(result.summary.participants[0]).toMatchObject({
+      escobas: 1,
+      sieteDeOros: 1,
+      sietes: 0,
+      oros: 0,
+      cartas: 0,
+      roundTotal: 2,
+    });
+    expect(result.summary.participants[1]).toMatchObject({
+      escobas: 0,
+      sieteDeOros: 0,
+      sietes: 0,
+      oros: 0,
+      cartas: 0,
+      roundTotal: 0,
+    });
+    expect(result.summary.participants[2]).toMatchObject({
+      escobas: 2,
+      sieteDeOros: 0,
+      sietes: 0,
+      oros: 0,
+      cartas: 0,
+      roundTotal: 2,
+    });
+  });
 });

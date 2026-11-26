@@ -373,6 +373,9 @@ describe('App — flujo inicial y mesa de juego', () => {
     expect(within(summaryTable).getByText(/bot/i)).toBeInTheDocument();
     expect(within(summaryTable).getAllByText('3').length).toBeGreaterThan(0);
     expect(within(summaryTable).getAllByText('2').length).toBeGreaterThan(0);
+    expect(within(summaryTable).getAllByText('(2)').length).toBeGreaterThanOrEqual(2);
+    expect(within(summaryTable).getByText('(9)')).toBeInTheDocument();
+    expect(within(summaryTable).getByText('(10)')).toBeInTheDocument();
     expect(within(summaryTable).getAllByText('15')).toHaveLength(2);
     expect(within(tieDialog).getByText(/desempate/i)).toBeInTheDocument();
 

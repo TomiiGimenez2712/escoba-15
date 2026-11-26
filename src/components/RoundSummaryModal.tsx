@@ -14,14 +14,30 @@ interface ScoreRow {
   label: string;
   className?: string;
   getValue: (participant: ParticipantRoundScore) => number;
+  getDetailCount?: (participant: ParticipantRoundScore) => number;
 }
 
 const SCORE_ROWS: ScoreRow[] = [
   { key: 'escobas', label: 'Escobas', getValue: (p) => p.escobas },
   { key: 'sieteDeOros', label: '7 de Oros', getValue: (p) => p.sieteDeOros },
-  { key: 'sietes', label: 'Sietes', getValue: (p) => p.sietes },
-  { key: 'oros', label: 'Oros', getValue: (p) => p.oros },
-  { key: 'cartas', label: 'Cartas', getValue: (p) => p.cartas },
+  {
+    key: 'sietes',
+    label: 'Sietes',
+    getValue: (p) => p.sietes,
+    getDetailCount: (p) => p.sietesCount,
+  },
+  {
+    key: 'oros',
+    label: 'Oros',
+    getValue: (p) => p.oros,
+    getDetailCount: (p) => p.orosCount,
+  },
+  {
+    key: 'cartas',
+    label: 'Cartas',
+    getValue: (p) => p.cartas,
+    getDetailCount: (p) => p.totalCardsCount,
+  },
   {
     key: 'roundTotal',
     label: 'Total de ronda',
@@ -116,6 +132,7 @@ export function RoundSummaryModal({ game, onNextRound, onRematch }: RoundSummary
                 <th scope="row">{row.label}</th>
                 {summary.participants.map((participant) => {
                   const value = row.getValue(participant);
+                  const detailCount = row.getDetailCount?.(participant);
                   return (
                     <td key={participant.participantId}>
                       {row.key === 'totalScore' ? (
@@ -123,6 +140,11 @@ export function RoundSummaryModal({ game, onNextRound, onRematch }: RoundSummary
                           <span>{value}</span>
                           <TrucoScore score={value} compact />
                         </div>
+                      ) : detailCount !== undefined ? (
+                        <>
+                          <span>{value}</span>
+                          <span className="summary-count">{`(${detailCount})`}</span>
+                        </>
                       ) : (
                         value
                       )}

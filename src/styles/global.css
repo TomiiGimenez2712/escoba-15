@@ -5,6 +5,7 @@
 }
 
 :root {
+  color-scheme: dark;
   --bg-top: #161f30;
   --bg-mid: #0f1624;
   --bg-bottom: #090d16;
@@ -18,20 +19,28 @@
   --card-shadow: 0 8px 18px rgba(0, 0, 0, 0.32);
 }
 
-html,
+html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: var(--bg-mid);
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   padding: 0;
-  min-height: 100dvh;
+  min-height: max(100%, 100dvh);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color: #f8fafc;
-  background: radial-gradient(
+  background-color: var(--bg-mid);
+  background-image: radial-gradient(
     circle at 50% 0%,
     var(--bg-top) 0%,
     var(--bg-mid) 56%,
     var(--bg-bottom) 100%
   );
-  background-attachment: fixed;
+  background-repeat: no-repeat;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -49,7 +58,8 @@ body {
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
-  padding: 1rem;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   text-align: center;
 }
 
@@ -462,7 +472,8 @@ body {
   width: 100%;
   max-width: 1080px;
   margin: 0 auto;
-  padding: 0.65rem 0.65rem 0;
+  padding: max(0.65rem, env(safe-area-inset-top)) max(0.65rem, env(safe-area-inset-right)) 0
+    max(0.65rem, env(safe-area-inset-left));
 }
 
 .leave-button {
@@ -515,7 +526,8 @@ body {
   max-height: 100dvh;
   max-width: 1080px;
   margin: 0 auto;
-  padding: 0.45rem 0.55rem;
+  padding: max(0.45rem, env(safe-area-inset-top)) max(0.55rem, env(safe-area-inset-right))
+    max(0.45rem, env(safe-area-inset-bottom)) max(0.55rem, env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -607,7 +619,10 @@ body {
 .side-card--history.side-card--history-open {
   display: flex;
   position: fixed;
-  inset: 0.85rem;
+  top: max(0.85rem, env(safe-area-inset-top));
+  right: max(0.85rem, env(safe-area-inset-right));
+  bottom: max(0.85rem, env(safe-area-inset-bottom));
+  left: max(0.85rem, env(safe-area-inset-left));
   z-index: 60;
   padding: 1rem;
   background: rgba(11, 15, 25, 0.97);
@@ -1544,7 +1559,8 @@ button.spanish-card:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   background: rgba(2, 6, 23, 0.76);
   backdrop-filter: blur(6px);
   overflow-y: auto;
@@ -1635,6 +1651,13 @@ button.spanish-card:disabled {
 .summary-table tbody td {
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+
+.summary-count {
+  margin-left: 0.28rem;
+  font-size: 0.78em;
+  font-weight: 500;
+  color: #94a3b8;
 }
 
 .summary-table__row--total th,
@@ -1759,7 +1782,8 @@ button.spanish-card:disabled {
   }
 
   .game-table {
-    padding: 0.65rem 1rem;
+    padding: max(0.65rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+      max(0.65rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
     gap: 0.5rem;
   }
 
@@ -1912,7 +1936,8 @@ button.spanish-card:disabled {
     grid-template-rows: auto minmax(0, 1fr);
     align-items: stretch;
     gap: 0.65rem 1rem;
-    padding: 0.75rem 1.25rem;
+    padding: max(0.75rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right))
+      max(0.75rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
   }
 
   .table-topbar {
@@ -1988,7 +2013,10 @@ button.spanish-card:disabled {
 .scorer-screen {
   height: 100dvh;
   max-height: 100dvh;
-  padding: clamp(0.4rem, 1.4dvh, 0.85rem);
+  padding: max(clamp(0.4rem, 1.4dvh, 0.85rem), env(safe-area-inset-top))
+    max(clamp(0.4rem, 1.4dvh, 0.85rem), env(safe-area-inset-right))
+    max(clamp(0.4rem, 1.4dvh, 0.85rem), env(safe-area-inset-bottom))
+    max(clamp(0.4rem, 1.4dvh, 0.85rem), env(safe-area-inset-left));
   overflow: hidden;
   justify-content: center;
 }
